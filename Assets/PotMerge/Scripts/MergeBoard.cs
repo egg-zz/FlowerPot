@@ -10,7 +10,7 @@ namespace PotMerge
     /// Rules:
     ///  - Only the same chain + same level merge. Dropping onto any other item swaps them.
     ///  - Merging two level-N items gives one level-(N+1) item and +N coins.
-    ///  - New game: at least 20 coins, 7 random items (any chain, level 1-2).
+    ///  - New game: at least 15 coins, 7 random items (any chain, level 1-2).
     ///  - ADD ITEM spawns a random item (any chain) and costs its level in coins (only affordable levels roll),
     ///    as long as there is an empty cell. Spawn range:
     ///    level 1-2 at first; making a level 4 opens 1-3, making a level 5 opens 1-4 (per game).

@@ -32,7 +32,7 @@ namespace PotMerge
     public static class PlayerData
     {
         public const int ChainCount = 4;
-        public const int StartCoins = 20;
+        public const int StartCoins = 15;
         const string Key = "PotMerge.Player.v1";
 
         [Serializable]
@@ -94,7 +94,7 @@ namespace PotMerge
         // Jewels come from purchases or the free lucky box (every 3 days). They buy coins and, later, premium costumes.
         // Rewarded ads only ever give coins.
         public const int LuckyBoxHours = 72;
-        public const int LuckyBoxMinJewels = 5, LuckyBoxMaxJewels = 15;
+        public const int LuckyBoxMinJewels = 1, LuckyBoxMaxJewels = 5;
         public const int AdCoins = 15;
         public const int AdsPerDay = 5;
 
