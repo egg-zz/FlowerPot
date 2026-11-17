@@ -91,9 +91,9 @@ namespace PotMerge
         }
 
         // ------------------------------------------------------------------ jewels (premium currency)
-        // Jewels come from purchases or the free lucky box (every 3 days). They buy coins and, later, premium costumes.
+        // Jewels come from purchases or the free daily lucky box. They buy coins and, later, premium costumes.
         // Rewarded ads only ever give coins.
-        public const int LuckyBoxHours = 72;
+        public const int LuckyBoxHours = 24;
         public const int LuckyBoxMinJewels = 1, LuckyBoxMaxJewels = 5;
         public const int AdCoins = 15;
         public const int AdsPerDay = 5;

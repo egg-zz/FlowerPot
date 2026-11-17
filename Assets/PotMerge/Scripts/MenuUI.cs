@@ -303,7 +303,7 @@ namespace PotMerge
                 var time = MakeLabel(ShortTime(PlayerData.LuckyBoxRemaining), 64, Ink);
                 time.style.marginTop = 8;
                 body.Add(time);
-                var note = MakeLabel($"A free box every {PlayerData.LuckyBoxHours / 24} days", 30, InkSoft);
+                var note = MakeLabel("A free box every day", 30, InkSoft);
                 note.style.marginTop = 20;
                 body.Add(note);
             }
