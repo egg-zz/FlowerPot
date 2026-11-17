@@ -12,7 +12,7 @@ namespace PotMerge
     ///  - Merging two level-N items gives one level-(N+1) item and +N coins.
     ///  - New game: at least 20 coins, 7 random items (any chain, level 1-2).
     ///  - 1 coin adds a random item (any chain) as long as there is an empty cell:
-    ///    level 1-2 at first, level 1-4 after 10 merges in the current game.
+    ///    level 1-2 at first; making a level 4 opens 1-3, making a level 5 opens 1-4 (per game).
     ///  - No merge possible and (no coins or board full) = game over.
     /// Coins, unlocks and quests live in <see cref="PlayerData"/>; this class saves only the board.
     /// </summary>
@@ -39,10 +39,8 @@ namespace PotMerge
         public int spawnMinLevel = 1;
         [Tooltip("Max spawn level at the start of a game (starting items and ADD ITEM)")]
         public int earlySpawnMaxLevel = 2;
-        [Tooltip("Max spawn level once enough merges were made in this game")]
+        [Tooltip("Spawn range grows with this game's best item: making level N allows spawns up to N-1, capped here")]
         public int spawnMaxLevel = 4;
-        [Tooltip("Merges in the current game needed before items up to spawnMaxLevel can spawn")]
-        public int mergesForFullSpawn = 10;
         public int spawnCost = 1;
         public float hintDelay = 6f;
 
@@ -55,7 +53,6 @@ namespace PotMerge
         PotItem[,] grid;
         int bestChain;
         int bestLevel = 1;
-        int mergeCount; // merges made in the current game
         bool gameOver;
         float idleTimer;
         float saveTimer;
@@ -133,7 +130,6 @@ namespace PotMerge
             PlayerData.EnsureStartCoins();
             bestChain = 0;
             bestLevel = 1;
-            mergeCount = 0;
             gameOver = false;
             for (int i = 0; i < startingItems; i++)
             {
@@ -417,20 +413,21 @@ namespace PotMerge
             long reward = fromLevel; // +1 for level-1 merges, +2 for level-2, ...
             PlayerData.AddCoins(reward);
             PlayerData.OnMerge(chain, newLevel);
-            mergeCount++;
-            bool rangeOpened = mergeCount == mergesForFullSpawn && spawnMaxLevel > earlySpawnMaxLevel;
+            int spawnMaxBefore = CurrentSpawnMax;
             hud?.FloatText(pos + Vector3.up * 1.4f, "+" + MergeHUD.Format(reward), new Color(1f, 0.85f, 0.25f), 56f);
 
-            if (TrackBest(chain, newLevel))
+            bool isNew = TrackBest(chain, newLevel);
+            if (CurrentSpawnMax > spawnMaxBefore)
             {
-                hud?.ShowToast("NEW! " + database.LevelName(chain, newLevel), Color.white);
-                EmitBurst(pos + Vector3.up * 1.2f, chain, 90);
+                hud?.ShowToast($"ADD ITEM: up to level {CurrentSpawnMax}!", new Color(1f, 0.9f, 0.4f));
                 SoundFx.Unlock();
             }
-            else if (rangeOpened)
+            else if (isNew)
             {
-                hud?.ShowToast($"ADD ITEM now gives up to level {spawnMaxLevel}!", new Color(1f, 0.9f, 0.4f));
+                hud?.ShowToast("NEW! " + database.LevelName(chain, newLevel), Color.white);
+                SoundFx.Unlock();
             }
+            if (isNew) EmitBurst(pos + Vector3.up * 1.2f, chain, 90);
             busyMerges--;
             RefreshState(true);
             Save();
@@ -468,8 +465,11 @@ namespace PotMerge
             level = UnityEngine.Random.Range(spawnMinLevel, Mathf.Min(CurrentSpawnMax, MaxLevel) + 1);
         }
 
-        /// <summary>Levels 1-2 until enough merges were made in this game, then 1-4.</summary>
-        int CurrentSpawnMax => mergeCount >= mergesForFullSpawn ? spawnMaxLevel : earlySpawnMaxLevel;
+        /// <summary>
+        /// Grows step by step with this game's best item: levels 1-2 at first,
+        /// 1-3 after making a level 4, 1-4 after making a level 5.
+        /// </summary>
+        int CurrentSpawnMax => Mathf.Clamp(bestLevel - 1, earlySpawnMaxLevel, Mathf.Max(earlySpawnMaxLevel, spawnMaxLevel));
 
         void SpawnRandom(int chain, int level, float delay)
         {
@@ -612,14 +612,13 @@ namespace PotMerge
             public int[] cells; // chain * 100 + level, 0 = empty
             public int bestChain;
             public int bestLevel;
-            public int mergeCount;
         }
 
         void Save()
         {
             if (grid == null) return;
             if (gameOver) { PlayerPrefs.DeleteKey(SaveKey); PlayerPrefs.Save(); return; }
-            var data = new SaveData { cells = new int[columns * rows], bestChain = bestChain, bestLevel = bestLevel, mergeCount = mergeCount };
+            var data = new SaveData { cells = new int[columns * rows], bestChain = bestChain, bestLevel = bestLevel };
             for (int x = 0; x < columns; x++)
             for (int y = 0; y < rows; y++)
             {
@@ -637,7 +636,6 @@ namespace PotMerge
             if (data == null || data.cells == null || data.cells.Length != columns * rows) return false;
             bestChain = Mathf.Clamp(data.bestChain, 0, ChainCount - 1);
             bestLevel = Mathf.Max(1, data.bestLevel);
-            mergeCount = Mathf.Max(0, data.mergeCount);
             float d = 0f;
             int count = 0;
             for (int x = 0; x < columns; x++)
