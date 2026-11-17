@@ -3,10 +3,13 @@ using UnityEngine;
 
 namespace PotMerge
 {
-    /// <summary>A pot sitting on the board. Holds its level and handles its own juice animations.</summary>
+    /// <summary>An item sitting on the board. Holds its chain + level and handles its own juice animations.</summary>
     public class PotItem : MonoBehaviour
     {
+        public int Chain { get; private set; }
         public int Level { get; private set; }
+        /// <summary>Items merge only when chain and level are both equal.</summary>
+        public bool Matches(PotItem other) => other != null && other != this && other.Chain == Chain && other.Level == Level;
         public Vector2Int Cell { get; set; }
         public bool IsDragging { get; set; }
 
@@ -16,8 +19,9 @@ namespace PotMerge
         Coroutine scaleRoutine;
         float bobOffset;
 
-        public void Init(int level, Transform visualRoot, float scale)
+        public void Init(int chain, int level, Transform visualRoot, float scale)
         {
+            Chain = chain;
             Level = level;
             visual = visualRoot;
             baseScale = Vector3.one * scale;

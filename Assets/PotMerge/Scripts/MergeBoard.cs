@@ -6,37 +6,34 @@ using UnityEngine;
 namespace PotMerge
 {
     /// <summary>
-    /// Core of the flower merge game.
+    /// Core of the merge game (4 chains x 11 levels on a 7x7 board).
     /// Rules:
+    ///  - Only the same chain + same level merge. Dropping onto any other item swaps them.
     ///  - Merging two level-N items gives one level-(N+1) item and +N coins.
-    ///  - Start: 20 coins, 7 random items (level 1-4).
-    ///  - When no merge is possible, 1 coin buys a new random item (level 1-4).
+    ///  - New game: at least 20 coins, 7 random items (any chain, level 1-4).
+    ///  - 1 coin adds a random item (any chain, level 1-4) as long as there is an empty cell.
     ///  - No merge possible and (no coins or board full) = game over.
+    /// Coins, unlocks and quests live in <see cref="PlayerData"/>; this class saves only the board.
     /// </summary>
     public class MergeBoard : MonoBehaviour
     {
-        [Header("Stages (index 0 = level 1)")]
-        public GameObject[] potModels;
-        public string[] levelNames =
-        {
-            "Seed", "Empty Pot", "Sprout", "Leafy Plant", "Bud", "Bloom",
-            "Triple Bloom", "Gift Flower", "Bouquet", "Flower Stall", "Flower Shop"
-        };
-        [Tooltip("Extra per-level size multiplier (index 0 = level 1). Missing entries = 1.")]
-        public float[] levelScale = { 1.5f, 1f, 1f, 1f, 1f, 1f, 0.9f, 1.15f, 1.2f, 1.0f, 1.05f };
+        [Header("Content")]
+        public ChainDatabase database;
+        [Tooltip("Max footprint (x/z) of an item, relative to the cell size")]
+        public float itemFootprint = 0.8f;
+        [Tooltip("Max height of an item in world units")]
+        public float itemHeight = 2.1f;
         public bool turnModelsToCamera = true;
 
         [Header("Board")]
         public int columns = 7;
         public int rows = 7;
         public float cellSize = 1.7f;
-        public float potScale = 1.3f;
         public Color tileA = new Color(0.47f, 0.70f, 0.30f);
         public Color tileB = new Color(0.40f, 0.62f, 0.25f);
         public Color boardColor = new Color(0.45f, 0.29f, 0.18f);
 
         [Header("Rules")]
-        public long startCoins = 20;
         public int startingItems = 7;
         public int spawnMinLevel = 1;
         public int spawnMaxLevel = 4;
@@ -47,10 +44,10 @@ namespace PotMerge
         public Camera cam;
         public MergeHUD hud;
 
-        const string SaveKey = "PotMerge.Save.v2";
+        const string SaveKey = "PotMerge.Board.v3";
 
         PotItem[,] grid;
-        long coins;
+        int bestChain;
         int bestLevel = 1;
         bool gameOver;
         float idleTimer;
@@ -58,29 +55,38 @@ namespace PotMerge
 
         PotItem dragging;
         Vector3 dragOffset;
-        Transform potsRoot;
+        Transform itemsRoot;
         ParticleSystem burst;
         float lastAspect = -1f;
         Transform highlight;
         int busyMerges;
 
-        int MaxLevel => potModels != null ? potModels.Length : 0;
+        int MaxLevel => database != null ? database.MaxLevel : 0;
+        int ChainCount => database != null ? Mathf.Min(database.ChainCount, PlayerData.ChainCount) : 0;
+        static long Coins => PlayerData.Coins;
 
         // ------------------------------------------------------------------ lifecycle
         void Start()
         {
             if (cam == null) cam = Camera.main;
+            if (database == null || ChainCount == 0)
+            {
+                Debug.LogError("[PotMerge] MergeBoard has no ChainDatabase assigned.");
+                enabled = false;
+                return;
+            }
             grid = new PotItem[columns, rows];
             BuildBoard();
             BuildBurst();
-            potsRoot = new GameObject("Pots").transform;
-            potsRoot.SetParent(transform, false);
+            itemsRoot = new GameObject("Items").transform;
+            itemsRoot.SetParent(transform, false);
 
             if (hud != null)
             {
                 hud.SpawnClicked += TryBuySpawn;
                 hud.RestartClicked += Restart;
             }
+            PlayerData.Changed += OnPlayerDataChanged;
 
             if (!Load()) NewGame();
             RefreshState();
@@ -93,10 +99,16 @@ namespace PotMerge
                 hud.SpawnClicked -= TryBuySpawn;
                 hud.RestartClicked -= Restart;
             }
+            PlayerData.Changed -= OnPlayerDataChanged;
         }
 
         void OnApplicationPause(bool paused) { if (paused) Save(); }
         void OnApplicationQuit() => Save();
+
+        void OnPlayerDataChanged()
+        {
+            if (hud != null) hud.SetCoins(Coins);
+        }
 
         void Update()
         {
@@ -111,24 +123,24 @@ namespace PotMerge
 
         void NewGame()
         {
-            coins = startCoins;
+            PlayerData.EnsureStartCoins();
+            bestChain = 0;
             bestLevel = 1;
             gameOver = false;
             for (int i = 0; i < startingItems; i++)
             {
-                int lv = RandomSpawnLevel();
-                SpawnRandom(lv, 0.08f * i);
-                bestLevel = Mathf.Max(bestLevel, lv);
+                RandomItem(out int chain, out int lv);
+                SpawnRandom(chain, lv, 0.08f * i);
             }
         }
 
-        void Restart()
+        public void Restart()
         {
             StopAllCoroutines();
             busyMerges = 0;
             dragging = null;
             highlight.gameObject.SetActive(false);
-            foreach (Transform t in potsRoot) Destroy(t.gameObject);
+            foreach (Transform t in itemsRoot) Destroy(t.gameObject);
             grid = new PotItem[columns, rows];
             hud?.ShowGameOver(false, "");
             NewGame();
@@ -257,13 +269,14 @@ namespace PotMerge
             {
                 idleTimer = 0f;
                 if (hud != null && hud.IsPointerOverUI(mouse)) return;
-                var pot = PickPot(mouse);
-                if (pot != null && ScreenToGround(mouse, out var g))
+                var item = PickItem(mouse);
+                if (item != null && ScreenToGround(mouse, out var g))
                 {
-                    dragging = pot;
-                    dragOffset = pot.transform.position - g;
+                    dragging = item;
+                    dragOffset = item.transform.position - g;
                     dragOffset.y = 0f;
-                    pot.SetLifted(true);
+                    item.SetLifted(true);
+                    SoundFx.Tap();
                 }
             }
 
@@ -280,14 +293,14 @@ namespace PotMerge
 
             if (dragging != null && Input.GetMouseButtonUp(0))
             {
-                var pot = dragging;
+                var item = dragging;
                 dragging = null;
                 highlight.gameObject.SetActive(false);
-                Drop(pot);
+                Drop(item);
             }
         }
 
-        PotItem PickPot(Vector2 screen)
+        PotItem PickItem(Vector2 screen)
         {
             var ray = cam.ScreenPointToRay(screen);
             var hits = Physics.RaycastAll(ray, 500f);
@@ -309,7 +322,7 @@ namespace PotMerge
             if (WorldToCell(p, out var c) && c != dragging.Cell)
             {
                 var other = grid[c.x, c.y];
-                bool canMerge = other != null && other.Level == dragging.Level && dragging.Level < MaxLevel;
+                bool canMerge = dragging.Matches(other) && dragging.Level < MaxLevel;
                 highlight.gameObject.SetActive(true);
                 highlight.position = CellToWorld(c) + Vector3.down * 0.04f;
                 highlight.GetComponent<Renderer>().material.color = canMerge ? new Color(1f, 0.9f, 0.3f) : new Color(0.92f, 0.92f, 0.92f);
@@ -317,14 +330,14 @@ namespace PotMerge
             else highlight.gameObject.SetActive(false);
         }
 
-        void Drop(PotItem pot)
+        void Drop(PotItem item)
         {
-            pot.SetLifted(false);
-            Vector2Int from = pot.Cell;
+            item.SetLifted(false);
+            Vector2Int from = item.Cell;
 
-            if (!WorldToCell(pot.transform.position, out var to) || to == from)
+            if (!WorldToCell(item.transform.position, out var to) || to == from)
             {
-                pot.MoveTo(CellToWorld(from));
+                item.MoveTo(CellToWorld(from));
                 return;
             }
 
@@ -332,41 +345,44 @@ namespace PotMerge
             if (other == null)
             {
                 grid[from.x, from.y] = null;
-                Place(pot, to);
-                pot.MoveTo(CellToWorld(to), 0.12f, pot.PlayPunch);
+                Place(item, to);
+                item.MoveTo(CellToWorld(to), 0.12f, item.PlayPunch);
+                SoundFx.Swap();
             }
-            else if (other.Level == pot.Level && pot.Level < MaxLevel)
+            else if (item.Matches(other) && item.Level < MaxLevel)
             {
-                Merge(pot, other, to);
+                Merge(item, other, to);
                 return;
             }
-            else if (other.Level == pot.Level)
+            else if (item.Matches(other))
             {
-                pot.MoveTo(CellToWorld(from));
+                item.MoveTo(CellToWorld(from));
                 other.PlayShake();
+                SoundFx.Error();
                 hud?.ShowToast("MAX LEVEL!", new Color(1f, 0.85f, 0.3f));
             }
             else
             {
+                // different chain or level: swap places
                 Place(other, from);
-                Place(pot, to);
+                Place(item, to);
                 other.MoveTo(CellToWorld(from), 0.18f, other.PlayPunch);
-                pot.MoveTo(CellToWorld(to), 0.12f, pot.PlayPunch);
+                item.MoveTo(CellToWorld(to), 0.12f, item.PlayPunch);
+                SoundFx.Swap();
             }
             RefreshState();
             Save();
         }
 
-        void Place(PotItem pot, Vector2Int cell)
+        void Place(PotItem item, Vector2Int cell)
         {
-            grid[cell.x, cell.y] = pot;
-            pot.Cell = cell;
+            grid[cell.x, cell.y] = item;
+            item.Cell = cell;
         }
 
         // ------------------------------------------------------------------ merge / spawn
         void Merge(PotItem a, PotItem b, Vector2Int cell)
         {
-            int fromLevel = a.Level;
             grid[a.Cell.x, a.Cell.y] = null;
             grid[b.Cell.x, b.Cell.y] = null;
             Vector3 pos = CellToWorld(cell);
@@ -374,30 +390,32 @@ namespace PotMerge
             // reserve the cell so nothing spawns into it during the merge animation
             busyMerges++;
             a.MoveTo(pos, 0.08f);
-            StartCoroutine(FinishMerge(a, b, cell, fromLevel, pos));
+            StartCoroutine(FinishMerge(a, b, cell, a.Chain, a.Level, pos));
         }
 
-        IEnumerator FinishMerge(PotItem a, PotItem b, Vector2Int cell, int fromLevel, Vector3 pos)
+        IEnumerator FinishMerge(PotItem a, PotItem b, Vector2Int cell, int chain, int fromLevel, Vector3 pos)
         {
             yield return new WaitForSeconds(0.08f);
             Destroy(a.gameObject);
             Destroy(b.gameObject);
 
             int newLevel = fromLevel + 1;
-            var pot = CreatePot(newLevel, cell);
-            pot.transform.position = pos;
-            pot.PlaySpawn();
-            EmitBurst(pos + Vector3.up * 0.6f, newLevel);
+            var item = CreateItem(chain, newLevel, cell);
+            item.transform.position = pos;
+            item.PlaySpawn();
+            EmitBurst(pos + Vector3.up * 0.6f, chain);
+            SoundFx.Merge(newLevel);
 
             long reward = fromLevel; // +1 for level-1 merges, +2 for level-2, ...
-            coins += reward;
+            PlayerData.AddCoins(reward);
+            PlayerData.OnMerge(chain, newLevel);
             hud?.FloatText(pos + Vector3.up * 1.4f, "+" + MergeHUD.Format(reward), new Color(1f, 0.85f, 0.25f), 56f);
 
-            if (newLevel > bestLevel)
+            if (TrackBest(chain, newLevel))
             {
-                bestLevel = newLevel;
-                hud?.ShowToast("NEW! " + LevelName(newLevel), Color.white);
-                EmitBurst(pos + Vector3.up * 1.2f, newLevel, 90);
+                hud?.ShowToast("NEW! " + database.LevelName(chain, newLevel), Color.white);
+                EmitBurst(pos + Vector3.up * 1.2f, chain, 90);
+                SoundFx.Unlock();
             }
             busyMerges--;
             RefreshState(true);
@@ -408,21 +426,35 @@ namespace PotMerge
         {
             idleTimer = 0f;
             if (gameOver || busyMerges > 0) return;
-            if (HasAnyMerge(out _, out _)) { hud?.ShowToast("Merge first!", new Color(1f, 0.75f, 0.5f)); ShowHint(); return; }
-            if (FreeCellCount() == 0) { hud?.ShowToast("Board full!", new Color(1f, 0.6f, 0.5f)); return; }
-            if (coins < spawnCost) { hud?.ShowToast("Not enough coins", new Color(1f, 0.6f, 0.5f)); return; }
-            coins -= spawnCost;
-            int lv = RandomSpawnLevel();
-            SpawnRandom(lv, 0f);
-            if (lv > bestLevel) bestLevel = lv;
-            hud?.SetCoins(coins, true);
+            if (FreeCellCount() == 0)
+            {
+                hud?.ShowToast("Board full! Make room first", new Color(1f, 0.6f, 0.5f));
+                SoundFx.Error();
+                ShowHint();
+                return;
+            }
+            if (!PlayerData.TrySpend(spawnCost))
+            {
+                hud?.ShowToast("Not enough coins", new Color(1f, 0.6f, 0.5f));
+                SoundFx.Error();
+                return;
+            }
+            RandomItem(out int chain, out int lv);
+            SpawnRandom(chain, lv, 0f);
+            PlayerData.OnAddItem();
+            SoundFx.Coin();
+            hud?.SetCoins(Coins, true);
             RefreshState();
             Save();
         }
 
-        int RandomSpawnLevel() => UnityEngine.Random.Range(spawnMinLevel, Mathf.Min(spawnMaxLevel, MaxLevel) + 1);
+        void RandomItem(out int chain, out int level)
+        {
+            chain = UnityEngine.Random.Range(0, ChainCount);
+            level = UnityEngine.Random.Range(spawnMinLevel, Mathf.Min(spawnMaxLevel, MaxLevel) + 1);
+        }
 
-        void SpawnRandom(int level, float delay)
+        void SpawnRandom(int chain, int level, float delay)
         {
             var empty = new List<Vector2Int>();
             for (int x = 0; x < columns; x++)
@@ -431,66 +463,62 @@ namespace PotMerge
             if (empty.Count == 0) return;
 
             var cell = empty[UnityEngine.Random.Range(0, empty.Count)];
-            var pot = CreatePot(level, cell);
+            var item = CreateItem(chain, level, cell);
             Vector3 target = CellToWorld(cell);
-            pot.transform.position = target + Vector3.up * 2.5f;
-            pot.PlaySpawn(delay);
-            StartCoroutine(DelayedDrop(pot, target, delay));
+            item.transform.position = target + Vector3.up * 2.5f;
+            item.PlaySpawn(delay);
+            StartCoroutine(DelayedDrop(item, target, delay));
+            if (TrackBest(chain, level) && delay <= 0f)
+                hud?.ShowToast("NEW! " + database.LevelName(chain, level), Color.white);
         }
 
-        IEnumerator DelayedDrop(PotItem pot, Vector3 target, float delay)
+        IEnumerator DelayedDrop(PotItem item, Vector3 target, float delay)
         {
             if (delay > 0f) yield return new WaitForSeconds(delay);
-            if (pot != null && !pot.IsDragging) pot.MoveTo(target, 0.25f, pot.PlayPunch);
+            if (item != null && !item.IsDragging)
+            {
+                item.MoveTo(target, 0.25f, item.PlayPunch);
+                SoundFx.Pop();
+            }
         }
 
-        PotItem CreatePot(int level, Vector2Int cell)
+        PotItem CreateItem(int chain, int level, Vector2Int cell)
         {
-            var go = new GameObject($"Item_L{level}");
-            go.transform.SetParent(potsRoot, false);
+            var go = new GameObject($"Item_{database.Get(chain).id}_L{level}");
+            go.transform.SetParent(itemsRoot, false);
             var item = go.AddComponent<PotItem>();
 
             var visual = new GameObject("Visual").transform;
             visual.SetParent(go.transform, false);
-            // keep the model's own root rotation (FBX axis conversion from 3ds Max Z-up)
-            var model = Instantiate(potModels[level - 1], visual, false);
-            foreach (var c in model.GetComponentsInChildren<Collider>()) Destroy(c);
-            // 3ds Max front (-Y) arrives facing +Z; turn it toward the camera
-            if (turnModelsToCamera) model.transform.Rotate(0f, 180f, 0f, Space.World);
+            ModelUtil.Spawn(database.Model(chain, level), visual, cellSize * itemFootprint, itemHeight,
+                database.SizeFor(level), turnModelsToCamera);
 
-            // ground the model and center it on the cell
-            var rs = model.GetComponentsInChildren<Renderer>();
-            if (rs.Length > 0)
-            {
-                Bounds b = rs[0].bounds;
-                foreach (var r in rs) b.Encapsulate(r.bounds);
-                Vector3 root = go.transform.position;
-                model.transform.position -= new Vector3(b.center.x - root.x, b.min.y - root.y, b.center.z - root.z);
-            }
-
-            float scale = potScale * (levelScale != null && level - 1 < levelScale.Length ? levelScale[level - 1] : 1f);
             var col = go.AddComponent<BoxCollider>();
-            col.center = new Vector3(0f, 0.5f * potScale, 0f);
-            col.size = new Vector3(cellSize * 0.85f, 1.0f * potScale, cellSize * 0.85f);
+            col.center = new Vector3(0f, 0.5f * itemHeight * 0.6f, 0f);
+            col.size = new Vector3(cellSize * 0.85f, itemHeight * 0.6f, cellSize * 0.85f);
 
-            item.Init(level, visual, scale);
+            item.Init(chain, level, visual, 1f);
             Place(item, cell);
             return item;
         }
 
-        void EmitBurst(Vector3 pos, int level, int count = 45)
+        /// <summary>Updates the best item of this run and the collection. Returns true for a never-seen item.</summary>
+        bool TrackBest(int chain, int level)
+        {
+            if (level > bestLevel) { bestLevel = level; bestChain = chain; }
+            return PlayerData.ReportItem(chain, level);
+        }
+
+        void EmitBurst(Vector3 pos, int chain, int count = 45)
         {
             if (burst == null) return;
-            Color[] palette =
-            {
-                new Color(0.55f, 0.85f, 0.35f), new Color(1f, 0.85f, 0.25f), new Color(0.4f, 0.85f, 0.9f),
-                new Color(1f, 0.5f, 0.7f), new Color(0.7f, 0.55f, 1f), Color.white
-            };
+            Color c = database.Get(chain).color;
+            Color[] palette = { c, Color.Lerp(c, Color.white, 0.5f), new Color(1f, 0.85f, 0.25f), Color.white };
             var ep = new ParticleSystem.EmitParams { applyShapeToPosition = true };
             for (int i = 0; i < count; i++)
             {
                 ep.position = pos;
-                ep.startColor = palette[(i + level) % palette.Length];
+                ep.startColor = palette[i % palette.Length];
                 burst.Emit(ep, 1);
             }
         }
@@ -502,8 +530,9 @@ namespace PotMerge
             foreach (var p in grid)
             {
                 if (p == null || p.Level >= MaxLevel) continue;
-                if (seen.TryGetValue(p.Level, out var other)) { a = other; b = p; return true; }
-                seen[p.Level] = p;
+                int key = p.Chain * 100 + p.Level;
+                if (seen.TryGetValue(key, out var other)) { a = other; b = p; return true; }
+                seen[key] = p;
             }
             a = b = null;
             return false;
@@ -519,24 +548,24 @@ namespace PotMerge
         void RefreshState(bool punch = false)
         {
             if (hud == null) return;
-            hud.SetCoins(coins, punch);
-            hud.SetBest(bestLevel, MaxLevel, LevelName(bestLevel));
+            hud.SetCoins(Coins, punch);
+            hud.SetBest(bestLevel, MaxLevel, database.LevelName(bestChain, bestLevel));
 
             if (busyMerges > 0) return;
             bool canMerge = HasAnyMerge(out _, out _);
             bool full = FreeCellCount() == 0;
-            if (canMerge)
-                hud.SetSpawn("MERGE!", "drag matching items together", false);
-            else if (full)
-                hud.SetSpawn("BOARD FULL", "no moves left", false);
+            if (full)
+                hud.SetSpawn("BOARD FULL", "make room first", false);
             else
-                hud.SetSpawn("ADD ITEM", spawnCost + (spawnCost == 1 ? " coin" : " coins"), coins >= spawnCost);
+                hud.SetSpawn("ADD ITEM", spawnCost + (spawnCost == 1 ? " coin" : " coins"), Coins >= spawnCost);
 
-            bool over = !canMerge && (full || coins < spawnCost);
+            bool over = !canMerge && (full || Coins < spawnCost);
             if (over && !gameOver)
             {
                 gameOver = true;
-                hud.ShowGameOver(true, $"Best: {LevelName(bestLevel)} ({bestLevel}/{MaxLevel})\nCoins left: {coins}");
+                SoundFx.Error();
+                hud.ShowGameOver(true, $"Best: {database.LevelName(bestChain, bestLevel)} ({bestLevel}/{MaxLevel})\nCoins: {Coins}");
+                Save();
             }
         }
 
@@ -560,15 +589,12 @@ namespace PotMerge
             }
         }
 
-        string LevelName(int level) =>
-            levelNames != null && level - 1 < levelNames.Length ? levelNames[level - 1] : "Level " + level;
-
         // ------------------------------------------------------------------ save / load
         [Serializable]
         class SaveData
         {
-            public int[] cells;
-            public long coins;
+            public int[] cells; // chain * 100 + level, 0 = empty
+            public int bestChain;
             public int bestLevel;
         }
 
@@ -576,10 +602,13 @@ namespace PotMerge
         {
             if (grid == null) return;
             if (gameOver) { PlayerPrefs.DeleteKey(SaveKey); PlayerPrefs.Save(); return; }
-            var data = new SaveData { cells = new int[columns * rows], coins = coins, bestLevel = bestLevel };
+            var data = new SaveData { cells = new int[columns * rows], bestChain = bestChain, bestLevel = bestLevel };
             for (int x = 0; x < columns; x++)
             for (int y = 0; y < rows; y++)
-                data.cells[y * columns + x] = grid[x, y] != null ? grid[x, y].Level : 0;
+            {
+                var p = grid[x, y];
+                data.cells[y * columns + x] = p != null ? p.Chain * 100 + p.Level : 0;
+            }
             PlayerPrefs.SetString(SaveKey, JsonUtility.ToJson(data));
             PlayerPrefs.Save();
         }
@@ -589,16 +618,17 @@ namespace PotMerge
             if (!PlayerPrefs.HasKey(SaveKey)) return false;
             var data = JsonUtility.FromJson<SaveData>(PlayerPrefs.GetString(SaveKey));
             if (data == null || data.cells == null || data.cells.Length != columns * rows) return false;
-            coins = data.coins;
+            bestChain = Mathf.Clamp(data.bestChain, 0, ChainCount - 1);
             bestLevel = Mathf.Max(1, data.bestLevel);
             float d = 0f;
             int count = 0;
             for (int x = 0; x < columns; x++)
             for (int y = 0; y < rows; y++)
             {
-                int lv = data.cells[y * columns + x];
-                if (lv <= 0 || lv > MaxLevel) continue;
-                var p = CreatePot(lv, new Vector2Int(x, y));
+                int v = data.cells[y * columns + x];
+                int chain = v / 100, lv = v % 100;
+                if (v <= 0 || !database.IsValid(chain, lv) || chain >= ChainCount) continue;
+                var p = CreateItem(chain, lv, new Vector2Int(x, y));
                 p.transform.position = CellToWorld(new Vector2Int(x, y));
                 p.PlaySpawn(d);
                 d += 0.02f;
@@ -607,11 +637,11 @@ namespace PotMerge
             return count > 0;
         }
 
-        [ContextMenu("Reset Save")]
+        [ContextMenu("Reset Board Save")]
         public void ResetSave()
         {
             PlayerPrefs.DeleteKey(SaveKey);
-            Debug.Log("[PotMerge] Save reset.");
+            Debug.Log("[PotMerge] Board save reset.");
         }
     }
 }
