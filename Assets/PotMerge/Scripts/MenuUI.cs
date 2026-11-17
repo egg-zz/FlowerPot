@@ -38,7 +38,11 @@ namespace PotMerge
 
         // home widgets
         Label homeCoins;
+        Label homeJewels;
         Label questBadge;
+        Label luckyBadge;
+        Label luckyLabel;
+        float luckyTick;
         Button startButton;
 
         bool dirty = true;
@@ -148,12 +152,14 @@ namespace PotMerge
             top.style.justifyContent = Justify.SpaceBetween;
             top.style.alignItems = Align.Center;
 
-            var coinPill = Pill();
-            coinPill.style.minWidth = 220;
-            coinPill.Add(CoinIcon(52));
-            homeCoins = MakeLabel("0", 46, Ink);
-            coinPill.Add(homeCoins);
-            top.Add(coinPill);
+            var wallet = new VisualElement { pickingMode = PickingMode.Ignore };
+            wallet.style.flexDirection = FlexDirection.Row;
+            wallet.Add(CurrencyPill(false, out homeCoins));
+            var jewelPill = CurrencyPill(true, out homeJewels);
+            jewelPill.style.marginLeft = 16;
+            jewelPill.style.minWidth = 150;
+            wallet.Add(jewelPill);
+            top.Add(wallet);
 
             // top right: collection, then settings
             var topRight = new VisualElement { pickingMode = PickingMode.Ignore };
@@ -172,6 +178,10 @@ namespace PotMerge
             var shop = MenuButton(IconShape.Bag, "SHOP", PinkDark, OpenShop, out _);
             shop.style.marginTop = 24;
             left.Add(shop);
+            var lucky = MenuButton(IconShape.Gift, "LUCKY BOX", JewelColor, OpenLuckyBox, out luckyBadge);
+            lucky.style.marginTop = 24;
+            luckyLabel = lucky[lucky.childCount - 1] as Label; // MenuButton adds its caption last
+            left.Add(lucky);
             layer.Add(left);
 
             // ---- GAME START at 3/4 of the screen height ----
@@ -243,9 +253,79 @@ namespace PotMerge
         {
             dirty = false;
             homeCoins.text = Format(PlayerData.Coins);
+            homeJewels.text = Format(PlayerData.Jewels);
             int claimable = PlayerData.ClaimableQuestCount();
             questBadge.text = claimable.ToString();
             Show(questBadge, claimable > 0);
+            RefreshLucky();
+        }
+
+        void RefreshLucky()
+        {
+            bool ready = PlayerData.LuckyBoxReady;
+            luckyBadge.text = "!";
+            Show(luckyBadge, ready);
+            if (luckyLabel != null) luckyLabel.text = ready ? "LUCKY BOX" : ShortTime(PlayerData.LuckyBoxRemaining);
+        }
+
+        static string ShortTime(TimeSpan t)
+        {
+            if (t.TotalDays >= 1) return $"{(int)t.TotalDays}d {t.Hours}h";
+            if (t.TotalHours >= 1) return $"{t.Hours}h {t.Minutes}m";
+            return $"{t.Minutes}m {t.Seconds}s";
+        }
+
+        // ------------------------------------------------------------------ lucky box
+        void OpenLuckyBox()
+        {
+            var popup = Popup("LUCKY BOX", 820, out var body, ClosePopups);
+            body.style.alignItems = Align.Center;
+            var gift = Icon(IconShape.Gift, 220, JewelColor);
+            body.Add(gift);
+            if (PlayerData.LuckyBoxReady)
+            {
+                var msg = MakeLabel($"Open it for {PlayerData.LuckyBoxMinJewels}-{PlayerData.LuckyBoxMaxJewels} jewels!", 38, Ink);
+                msg.style.marginTop = 24; msg.style.marginBottom = 36;
+                msg.style.whiteSpace = WhiteSpace.Normal;
+                msg.style.unityTextAlign = TextAnchor.MiddleCenter;
+                body.Add(msg);
+                body.Add(BigButton("OPEN", 420, 140, 56, JewelColor, Color.Lerp(JewelColor, Color.black, 0.3f), () =>
+                {
+                    int won = PlayerData.OpenLuckyBox();
+                    if (won > 0) ShowLuckyResult(won);
+                }));
+            }
+            else
+            {
+                var msg = MakeLabel("Next box opens in", 36, InkSoft);
+                msg.style.marginTop = 24;
+                body.Add(msg);
+                var time = MakeLabel(ShortTime(PlayerData.LuckyBoxRemaining), 64, Ink);
+                time.style.marginTop = 8;
+                body.Add(time);
+                var note = MakeLabel($"A free box every {PlayerData.LuckyBoxHours / 24} days", 30, InkSoft);
+                note.style.marginTop = 20;
+                body.Add(note);
+            }
+            OpenPopup(popup);
+        }
+
+        void ShowLuckyResult(int won)
+        {
+            SoundFx.Unlock();
+            var popup = Popup("YAY!", 820, out var body, ClosePopups);
+            body.style.alignItems = Align.Center;
+            var row = new VisualElement { pickingMode = PickingMode.Ignore };
+            row.style.flexDirection = FlexDirection.Row;
+            row.style.alignItems = Align.Center;
+            row.Add(JewelIcon(140, 20));
+            row.Add(MakeLabel("+" + won, 110, JewelColor));
+            body.Add(row);
+            var ok = BigButton("OK", 360, 130, 52, Green, GreenDark, ClosePopups);
+            ok.style.marginTop = 40;
+            body.Add(ok);
+            OpenPopup(popup);
+            RefreshHome();
         }
 
         // ------------------------------------------------------------------ popups
@@ -500,18 +580,93 @@ namespace PotMerge
 
         void OpenShop()
         {
-            var popup = Popup("SHOP", 820, out var body, ClosePopups);
-            body.style.alignItems = Align.Center;
-            body.Add(Icon(IconShape.Bag, 160, PinkDark));
-            var msg = MakeLabel("Costumes for the flower shop owner are coming soon!", 40, Ink);
-            msg.style.whiteSpace = WhiteSpace.Normal;
-            msg.style.unityTextAlign = TextAnchor.MiddleCenter;
-            msg.style.marginTop = 30;
-            body.Add(msg);
-            var sub = MakeLabel("Save your coins.", 32, InkSoft);
-            sub.style.marginTop = 16;
-            body.Add(sub);
+            var popup = Popup("SHOP", 940, out var body, ClosePopups);
+
+            // wallet line
+            var wallet = new VisualElement { pickingMode = PickingMode.Ignore };
+            wallet.style.flexDirection = FlexDirection.Row;
+            wallet.style.justifyContent = Justify.Center;
+            wallet.style.marginBottom = 26;
+            var c = CurrencyPill(false, out var cl); cl.text = Format(PlayerData.Coins); wallet.Add(c);
+            var j = CurrencyPill(true, out var jl); jl.text = Format(PlayerData.Jewels); j.style.marginLeft = 16; wallet.Add(j);
+            body.Add(wallet);
+
+            // coins for jewels
+            body.Add(SectionTitle("COINS"));
+            var coinRow = ShopRow();
+            for (int i = 0; i < PlayerData.CoinPacks.Length; i++)
+            {
+                int index = i;
+                var pack = PlayerData.CoinPacks[i];
+                bool afford = PlayerData.Jewels >= pack.jewels;
+                var card = ShopCard(CoinIcon(90, 0), $"{pack.coins}");
+                var buy = BigButton("", 230, 96, 36, afford ? JewelColor : Disabled,
+                    afford ? Color.Lerp(JewelColor, Color.black, 0.3f) : DisabledDark, () => BuyCoins(index));
+                var line = new VisualElement { pickingMode = PickingMode.Ignore };
+                line.style.flexDirection = FlexDirection.Row; line.style.alignItems = Align.Center;
+                line.Add(Icon(IconShape.Gem, 40, Color.white)); line.Add(MakeLabel(" " + pack.jewels, 38, Color.white));
+                buy.Add(line);
+                card.Add(buy);
+                coinRow.Add(card);
+            }
+            body.Add(coinRow);
+
+            // jewels for real money (store not connected yet)
+            body.Add(SectionTitle("JEWELS"));
+            var jewelRow = ShopRow();
+            foreach (var amount in new[] { 30, 80, 200 })
+            {
+                var card = ShopCard(JewelIcon(90, 0), amount.ToString());
+                card.Add(BigButton("SOON", 230, 96, 36, Disabled, DisabledDark, () => SoundFx.Error()));
+                jewelRow.Add(card);
+            }
+            body.Add(jewelRow);
+
+            var note = MakeLabel("Costumes for the shop owner are coming soon!", 30, InkSoft);
+            note.style.marginTop = 20;
+            note.style.unityTextAlign = TextAnchor.MiddleCenter;
+            body.Add(note);
             OpenPopup(popup);
+        }
+
+        void BuyCoins(int index)
+        {
+            if (!PlayerData.BuyCoinPack(index)) { SoundFx.Error(); return; }
+            SoundFx.Coin();
+            RefreshHome();
+            OpenShop();
+        }
+
+        static Label SectionTitle(string text)
+        {
+            var l = MakeLabel(text, 40, InkSoft);
+            l.style.marginBottom = 14;
+            l.style.marginLeft = 10;
+            return l;
+        }
+
+        static VisualElement ShopRow()
+        {
+            var r = new VisualElement { pickingMode = PickingMode.Ignore };
+            r.style.flexDirection = FlexDirection.Row;
+            r.style.justifyContent = Justify.SpaceBetween;
+            r.style.marginBottom = 30;
+            return r;
+        }
+
+        static VisualElement ShopCard(VisualElement icon, string amount)
+        {
+            var card = new VisualElement { pickingMode = PickingMode.Ignore };
+            card.style.width = 256;
+            card.style.alignItems = Align.Center;
+            card.style.paddingTop = 24; card.style.paddingBottom = 20;
+            card.style.backgroundColor = new Color(0.96f, 0.92f, 0.84f);
+            Round(card, 60);
+            card.Add(icon);
+            var l = MakeLabel(amount, 46, Ink);
+            l.style.marginTop = 8; l.style.marginBottom = 14;
+            card.Add(l);
+            return card;
         }
 
         // ------------------------------------------------------------------ animation
@@ -544,6 +699,8 @@ namespace PotMerge
                 }
                 float s = 1f + 0.035f * Mathf.Sin(t * 3f);
                 startButton.style.scale = new Scale(new Vector3(s, s, 1f));
+                luckyTick += Time.unscaledDeltaTime;
+                if (luckyTick >= 1f) { luckyTick = 0f; RefreshLucky(); }
             }
         }
     }

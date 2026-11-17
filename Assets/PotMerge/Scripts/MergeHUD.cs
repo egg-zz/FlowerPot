@@ -14,10 +14,18 @@ namespace PotMerge
         public event Action RestartClicked;
         public event Action HomeClicked;
         public event Action SettingsClicked;
+        public event Action AdClicked;
+        public event Action ExchangeClicked;
 
         VisualElement root;
         VisualElement fxLayer;
         Label coinLabel;
+        Label jewelLabel;
+        VisualElement outOfCoinsPanel;
+        Button adButton;
+        Label adLabel;
+        Button exchangeButton;
+        Label exchangeLabel;
         Button spawnButton;
         Label spawnTitle;
         Label spawnCost;
@@ -51,11 +59,13 @@ namespace PotMerge
             top.style.alignItems = Align.Center;
             top.style.paddingTop = 70; top.style.paddingLeft = 40; top.style.paddingRight = 40;
 
-            var coinPill = Pill();
-            coinPill.style.minWidth = 220;
-            coinPill.Add(CoinIcon(52));
-            coinLabel = MakeLabel("0", 46, Ink);
-            coinPill.Add(coinLabel);
+            var coinPill = new VisualElement { pickingMode = PickingMode.Ignore };
+            coinPill.style.flexDirection = FlexDirection.Row;
+            coinPill.Add(CurrencyPill(false, out coinLabel));
+            var jewelPill = CurrencyPill(true, out jewelLabel);
+            jewelPill.style.marginLeft = 16;
+            jewelPill.style.minWidth = 150;
+            coinPill.Add(jewelPill);
 
             var buttons = new VisualElement { pickingMode = PickingMode.Ignore };
             buttons.style.flexDirection = FlexDirection.Row;
@@ -116,10 +126,56 @@ namespace PotMerge
             card.Add(row);
             gameOverPanel.Add(card);
 
+            // ---------- out of coins (no merge left, can't pay for ADD ITEM) ----------
+            outOfCoinsPanel = new VisualElement();
+            Stretch(outOfCoinsPanel);
+            outOfCoinsPanel.style.backgroundColor = Dim;
+            outOfCoinsPanel.style.alignItems = Align.Center;
+            outOfCoinsPanel.style.justifyContent = Justify.Center;
+            outOfCoinsPanel.style.display = DisplayStyle.None;
+            var oc = Card(80);
+            oc.style.width = 860;
+            oc.style.paddingTop = 60; oc.style.paddingBottom = 60; oc.style.paddingLeft = 60; oc.style.paddingRight = 60;
+            oc.style.alignItems = Align.Center;
+            oc.Add(MakeLabel("OUT OF COINS", 68, Ink));
+            var ocInfo = MakeLabel("No merges left. Get coins to keep going!", 36, InkSoft);
+            ocInfo.style.whiteSpace = WhiteSpace.Normal;
+            ocInfo.style.unityTextAlign = TextAnchor.MiddleCenter;
+            ocInfo.style.marginTop = 16; ocInfo.style.marginBottom = 40;
+            oc.Add(ocInfo);
+
+            adButton = BigButton("", 700, 130, 40, new Color(0.40f, 0.70f, 0.95f), new Color(0.25f, 0.50f, 0.78f), () => AdClicked?.Invoke());
+            var adRow = Row();
+            adRow.Add(Icon(IconShape.Play, 46, Color.white));
+            adLabel = MakeLabel("", 40, Color.white);
+            adLabel.style.marginLeft = 14;
+            adRow.Add(adLabel);
+            adButton.Add(adRow);
+            oc.Add(adButton);
+
+            exchangeButton = BigButton("", 700, 130, 40, JewelColor, Color.Lerp(JewelColor, Color.black, 0.3f), () => ExchangeClicked?.Invoke());
+            exchangeButton.style.marginTop = 24;
+            var exRow = Row();
+            exRow.Add(JewelIcon(50));
+            exchangeLabel = MakeLabel("", 40, Color.white);
+            exRow.Add(exchangeLabel);
+            exchangeButton.Add(exRow);
+            oc.Add(exchangeButton);
+
+            var ocBottom = Row();
+            ocBottom.style.marginTop = 36;
+            var ocHome = BigButton("HOME", 330, 120, 44, Pink, PinkDark, () => HomeClicked?.Invoke());
+            ocHome.style.marginRight = 30;
+            ocBottom.Add(ocHome);
+            ocBottom.Add(BigButton("RESTART", 330, 120, 44, Green, GreenDark, () => RestartClicked?.Invoke()));
+            oc.Add(ocBottom);
+            outOfCoinsPanel.Add(oc);
+
             root.Add(top);
             root.Add(bottom);
             root.Add(fxLayer);
             root.Add(toast);
+            root.Add(outOfCoinsPanel);
             root.Add(gameOverPanel);
         }
 
@@ -132,7 +188,33 @@ namespace PotMerge
         public void SetCoins(long coins, bool punch = false)
         {
             coinLabel.text = Format(coins);
+            jewelLabel.text = Format(PlayerData.Jewels);
             if (punch) coinPunch = 1f;
+        }
+
+        /// <summary>Shows/hides the "out of coins" offer: rewarded ad for coins, or jewels for coins.</summary>
+        public void ShowOutOfCoins(bool show)
+        {
+            outOfCoinsPanel.style.display = show ? DisplayStyle.Flex : DisplayStyle.None;
+            if (!show) return;
+            int adsLeft = PlayerData.AdsLeftToday;
+            adLabel.text = adsLeft > 0 ? $"WATCH AD  +{PlayerData.AdCoins} coins ({adsLeft} left)" : "NO ADS LEFT TODAY";
+            SetButtonColors(adButton, adsLeft > 0 ? new Color(0.40f, 0.70f, 0.95f) : Disabled, adsLeft > 0 ? new Color(0.25f, 0.50f, 0.78f) : DisabledDark);
+            var pack = PlayerData.CoinPacks[0];
+            bool canPay = PlayerData.Jewels >= pack.jewels;
+            exchangeLabel.text = $"{pack.jewels}  =  {pack.coins} coins";
+            SetButtonColors(exchangeButton, canPay ? JewelColor : Disabled, canPay ? Color.Lerp(JewelColor, Color.black, 0.3f) : DisabledDark);
+        }
+
+        public bool OutOfCoinsVisible => outOfCoinsPanel != null && outOfCoinsPanel.style.display == DisplayStyle.Flex;
+
+        static VisualElement Row()
+        {
+            var r = new VisualElement { pickingMode = PickingMode.Ignore };
+            r.style.flexDirection = FlexDirection.Row;
+            r.style.alignItems = Align.Center;
+            r.style.justifyContent = Justify.Center;
+            return r;
         }
 
         public void SetSpawn(string title, string subtitle, bool enabled)

@@ -28,6 +28,8 @@ namespace PotMerge
         public bool turnModelsToCamera = true;
 
         [Header("Board")]
+        [Tooltip("Camera tilt in degrees (90 = straight down). Lower shows more of each item's front.")]
+        public float cameraPitch = 48f;
         public int columns = 7;
         public int rows = 7;
         public float cellSize = 1.7f;
@@ -91,6 +93,8 @@ namespace PotMerge
             {
                 hud.SpawnClicked += TryBuySpawn;
                 hud.RestartClicked += Restart;
+                hud.AdClicked += OnAdClicked;
+                hud.ExchangeClicked += OnExchangeClicked;
             }
             PlayerData.Changed += OnPlayerDataChanged;
 
@@ -104,6 +108,8 @@ namespace PotMerge
             {
                 hud.SpawnClicked -= TryBuySpawn;
                 hud.RestartClicked -= Restart;
+                hud.AdClicked -= OnAdClicked;
+                hud.ExchangeClicked -= OnExchangeClicked;
             }
             PlayerData.Changed -= OnPlayerDataChanged;
         }
@@ -270,7 +276,7 @@ namespace PotMerge
         {
             if (cam == null || Mathf.Approximately(cam.aspect, lastAspect)) return;
             lastAspect = cam.aspect;
-            const float pitch = 60f;
+            float pitch = cameraPitch;
             float boardW = columns * cellSize + 1.6f;
             float boardD = rows * cellSize + 0.6f;
             float vHalf = cam.fieldOfView * 0.5f * Mathf.Deg2Rad;
@@ -610,7 +616,8 @@ namespace PotMerge
                 hud.SetSpawn("ADD ITEM", canPay ? "" : "not enough coins", canPay);
             }
 
-            bool over = !canMerge && (full || AffordableSpawnMax < spawnMinLevel);
+            // board full and nothing to merge: real game over
+            bool over = !canMerge && full;
             if (over && !gameOver)
             {
                 gameOver = true;
@@ -618,6 +625,33 @@ namespace PotMerge
                 hud.ShowGameOver(true, $"Best: {database.LevelName(bestChain, bestLevel)} ({bestLevel}/{MaxLevel})\nCoins: {Coins}");
                 Save();
             }
+
+            // room left but no merge and no coins: offer coins (rewarded ad or jewels) instead of ending the game
+            bool outOfCoins = !gameOver && !canMerge && !full && AffordableSpawnMax < spawnMinLevel;
+            if (outOfCoins && !hud.OutOfCoinsVisible) SoundFx.Error();
+            hud.ShowOutOfCoins(outOfCoins);
+        }
+
+        void OnAdClicked()
+        {
+            if (PlayerData.AdsLeftToday <= 0) { SoundFx.Error(); return; }
+            AdService.ShowRewarded(() =>
+            {
+                if (PlayerData.RewardAd())
+                {
+                    SoundFx.Coin();
+                    hud?.ShowToast($"+{PlayerData.AdCoins} coins!", new Color(1f, 0.85f, 0.25f));
+                }
+                RefreshState(true);
+            });
+        }
+
+        void OnExchangeClicked()
+        {
+            if (!PlayerData.BuyCoinPack(0)) { SoundFx.Error(); hud?.ShowToast("Not enough jewels", new Color(1f, 0.6f, 0.5f)); return; }
+            SoundFx.Coin();
+            hud?.ShowToast($"+{PlayerData.CoinPacks[0].coins} coins!", new Color(1f, 0.85f, 0.25f));
+            RefreshState(true);
         }
 
         void TickHint()

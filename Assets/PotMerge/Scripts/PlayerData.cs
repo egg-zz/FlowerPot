@@ -44,6 +44,10 @@ namespace PotMerge
             public bool soundOn = true;
             public string questDate = "";
             public List<Quest> quests = new List<Quest>();
+            public long jewels;
+            public long luckyBoxNextTicks;   // UTC ticks when the lucky box opens again (0 = ready now)
+            public string adDate = "";
+            public int adsToday;
         }
 
         static Data data;
@@ -84,6 +88,75 @@ namespace PotMerge
             if (D.coins >= StartCoins) return;
             D.coins = StartCoins;
             Commit();
+        }
+
+        // ------------------------------------------------------------------ jewels (premium currency)
+        // Jewels come from purchases or the free lucky box (every 3 days). They buy coins and, later, premium costumes.
+        // Rewarded ads only ever give coins.
+        public const int LuckyBoxHours = 72;
+        public const int LuckyBoxMinJewels = 5, LuckyBoxMaxJewels = 15;
+        public const int AdCoins = 15;
+        public const int AdsPerDay = 5;
+
+        /// <summary>Jewel -> coin exchange packs (jewels, coins).</summary>
+        public static readonly (int jewels, int coins)[] CoinPacks = { (5, 20), (12, 60), (25, 150) };
+
+        public static long Jewels => D.jewels;
+
+        public static void AddJewels(long amount)
+        {
+            if (amount == 0) return;
+            D.jewels = Math.Max(0, D.jewels + amount);
+            Commit();
+        }
+
+        /// <summary>Buys coins with jewels. Returns false when there are not enough jewels.</summary>
+        public static bool BuyCoinPack(int index)
+        {
+            if (index < 0 || index >= CoinPacks.Length) return false;
+            var pack = CoinPacks[index];
+            if (D.jewels < pack.jewels) return false;
+            D.jewels -= pack.jewels;
+            D.coins += pack.coins;
+            Commit();
+            return true;
+        }
+
+        public static bool LuckyBoxReady => DateTime.UtcNow.Ticks >= D.luckyBoxNextTicks;
+
+        public static TimeSpan LuckyBoxRemaining =>
+            LuckyBoxReady ? TimeSpan.Zero : new TimeSpan(D.luckyBoxNextTicks - DateTime.UtcNow.Ticks);
+
+        /// <summary>Opens the lucky box if it is ready. Returns the jewels won (0 if not ready).</summary>
+        public static int OpenLuckyBox()
+        {
+            if (!LuckyBoxReady) return 0;
+            int won = UnityEngine.Random.Range(LuckyBoxMinJewels, LuckyBoxMaxJewels + 1);
+            D.jewels += won;
+            D.luckyBoxNextTicks = DateTime.UtcNow.AddHours(LuckyBoxHours).Ticks;
+            Commit();
+            return won;
+        }
+
+        public static int AdsLeftToday
+        {
+            get
+            {
+                string today = DateTime.Now.ToString("yyyyMMdd");
+                return D.adDate == today ? Mathf.Max(0, AdsPerDay - D.adsToday) : AdsPerDay;
+            }
+        }
+
+        /// <summary>Call after a rewarded ad finished. Grants <see cref="AdCoins"/> and counts toward the daily limit.</summary>
+        public static bool RewardAd()
+        {
+            if (AdsLeftToday <= 0) return false;
+            string today = DateTime.Now.ToString("yyyyMMdd");
+            if (D.adDate != today) { D.adDate = today; D.adsToday = 0; }
+            D.adsToday++;
+            D.coins += AdCoins;
+            Commit();
+            return true;
         }
 
         // ------------------------------------------------------------------ chains / collection

@@ -4,7 +4,7 @@ using UnityEngine.UIElements;
 
 namespace PotMerge
 {
-    public enum IconShape { Home, Gear, Book, Bag, Close, Check, Star }
+    public enum IconShape { Home, Gear, Book, Bag, Close, Check, Star, Gem, Gift, Play }
 
     /// <summary>Shared look for all runtime-built UI Toolkit screens (reference resolution 1080x1920).</summary>
     public static class UIKit
@@ -238,6 +238,44 @@ namespace PotMerge
                         p.Stroke();
                         break;
                     }
+                    case IconShape.Gem:
+                    {
+                        // faceted jewel: crown on top, point at the bottom, lighter facets
+                        Vector2 a = new Vector2(s * 0.24f, s * 0.14f), b = new Vector2(s * 0.76f, s * 0.14f);
+                        Vector2 c = new Vector2(s * 0.96f, s * 0.38f), d = new Vector2(s * 0.5f, s * 0.92f), e = new Vector2(s * 0.04f, s * 0.38f);
+                        p.BeginPath(); p.MoveTo(a); p.LineTo(b); p.LineTo(c); p.LineTo(d); p.LineTo(e); p.ClosePath(); p.Fill();
+                        p.fillColor = Color.Lerp(color, Color.white, 0.45f);
+                        p.BeginPath(); p.MoveTo(a); p.LineTo(b); p.LineTo(new Vector2(s * 0.66f, s * 0.38f)); p.LineTo(new Vector2(s * 0.34f, s * 0.38f)); p.ClosePath(); p.Fill();
+                        p.fillColor = Color.Lerp(color, Color.white, 0.25f);
+                        p.BeginPath(); p.MoveTo(new Vector2(s * 0.34f, s * 0.38f)); p.LineTo(new Vector2(s * 0.66f, s * 0.38f)); p.LineTo(d); p.ClosePath(); p.Fill();
+                        p.fillColor = new Color(1f, 1f, 1f, 0.85f);
+                        p.BeginPath(); p.Arc(new Vector2(s * 0.33f, s * 0.24f), s * 0.05f, 0f, 360f); p.Fill();
+                        break;
+                    }
+                    case IconShape.Gift:
+                    {
+                        var ribbon = Color.Lerp(color, Color.white, 0.6f);
+                        // box + lid
+                        p.BeginPath(); p.MoveTo(new Vector2(s * 0.14f, s * 0.46f)); p.LineTo(new Vector2(s * 0.86f, s * 0.46f));
+                        p.LineTo(new Vector2(s * 0.86f, s * 0.94f)); p.LineTo(new Vector2(s * 0.14f, s * 0.94f)); p.ClosePath(); p.Fill();
+                        p.BeginPath(); p.MoveTo(new Vector2(s * 0.06f, s * 0.3f)); p.LineTo(new Vector2(s * 0.94f, s * 0.3f));
+                        p.LineTo(new Vector2(s * 0.94f, s * 0.48f)); p.LineTo(new Vector2(s * 0.06f, s * 0.48f)); p.ClosePath(); p.Fill();
+                        // ribbon + bow
+                        p.fillColor = ribbon;
+                        p.BeginPath(); p.MoveTo(new Vector2(s * 0.43f, s * 0.3f)); p.LineTo(new Vector2(s * 0.57f, s * 0.3f));
+                        p.LineTo(new Vector2(s * 0.57f, s * 0.94f)); p.LineTo(new Vector2(s * 0.43f, s * 0.94f)); p.ClosePath(); p.Fill();
+                        p.BeginPath(); p.Arc(new Vector2(s * 0.36f, s * 0.2f), s * 0.11f, 0f, 360f); p.Fill();
+                        p.BeginPath(); p.Arc(new Vector2(s * 0.64f, s * 0.2f), s * 0.11f, 0f, 360f); p.Fill();
+                        break;
+                    }
+                    case IconShape.Play:
+                        p.BeginPath();
+                        p.MoveTo(new Vector2(s * 0.26f, s * 0.14f));
+                        p.LineTo(new Vector2(s * 0.88f, s * 0.5f));
+                        p.LineTo(new Vector2(s * 0.26f, s * 0.86f));
+                        p.ClosePath();
+                        p.Fill();
+                        break;
                     case IconShape.Close:
                         p.lineWidth = s * 0.16f;
                         p.BeginPath();
@@ -295,6 +333,26 @@ namespace PotMerge
             shine.style.backgroundColor = new Color(1f, 0.97f, 0.8f);
             face.Add(shine);
             return rim;
+        }
+
+        public static readonly Color JewelColor = new Color(0.95f, 0.35f, 0.62f);
+
+        public static VisualElement JewelIcon(float size, float marginRight = 12f)
+        {
+            var v = Icon(IconShape.Gem, size, JewelColor);
+            v.style.marginRight = marginRight;
+            return v;
+        }
+
+        /// <summary>Cream pill with a coin or jewel icon and an amount label.</summary>
+        public static VisualElement CurrencyPill(bool jewel, out Label amount)
+        {
+            var pill = Pill();
+            pill.style.minWidth = 200;
+            pill.Add(jewel ? JewelIcon(54) : CoinIcon(52));
+            amount = MakeLabel("0", 46, Ink);
+            pill.Add(amount);
+            return pill;
         }
 
         /// <summary>Full-screen dimmed overlay with a centered card. Tapping outside the card calls onClose.</summary>

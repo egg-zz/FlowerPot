@@ -318,9 +318,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PotMerge.MergeBoard
   database: {fileID: 11400000, guid: c0644365ffe7b564ba5201ee08144e46, type: 2}
-  itemFootprint: 0.8
-  itemHeight: 2.1
+  itemFootprint: 0.95
+  itemHeight: 2.5
   turnModelsToCamera: 1
+  cameraPitch: 48
   columns: 7
   rows: 7
   cellSize: 1.7
@@ -523,8 +524,8 @@ MonoBehaviour:
   database: {fileID: 11400000, guid: c0644365ffe7b564ba5201ee08144e46, type: 2}
   chain: 0
   offset: {x: 80, y: 0, z: 0}
-  heroModel: {fileID: 0}
-  shopSize: 6
+  heroModel: {fileID: 919132149155446097, guid: 2848c626a355fa24aa0c9f2b46d5bb3f, type: 3}
+  shopSize: 7
   islandSize: 11
   sky: {r: 0.8, g: 0.91, b: 0.99, a: 1}
   grass: {r: 0.55, g: 0.82, b: 0.45, a: 1}
