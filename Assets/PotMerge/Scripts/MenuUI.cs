@@ -7,7 +7,7 @@ using static PotMerge.UIKit;
 namespace PotMerge
 {
     /// <summary>
-    /// Runtime-built UI Toolkit menus: title screen, home screen and the settings / collection / shop popups.
+    /// Runtime-built UI Toolkit menus: title screen, home screen and the quests / settings / collection / shop popups.
     /// Uses the same PanelSettings as the game HUD and sits above it (higher sorting order).
     /// </summary>
     [RequireComponent(typeof(UIDocument))]
@@ -15,6 +15,9 @@ namespace PotMerge
     {
         public ChainDatabase database;
         public MergeBoard board;
+        [Tooltip("Illustrated title logo. When empty, the title is built from letters.")]
+        public Texture2D titleImage;
+        public float titleImageWidth = 900f;
 
         public event Action TitleTapped;
         public event Action StartClicked;
@@ -29,19 +32,17 @@ namespace PotMerge
 
         VisualElement root;
         VisualElement titleLayer, homeLayer, popupLayer;
-        readonly List<Label> titleLetters = new List<Label>();
+        readonly List<VisualElement> titleLetters = new List<VisualElement>();
         VisualElement titleBlock;
         Label tapLabel;
 
         // home widgets
         Label homeCoins;
-        readonly List<VisualElement> chainIcons = new List<VisualElement>();
-        readonly List<Label> chainLevels = new List<Label>();
-        VisualElement questList;
         Label questBadge;
         Button startButton;
 
         bool dirty = true;
+        bool questsOpen;
 
         // ------------------------------------------------------------------ build
         void OnEnable()
@@ -79,24 +80,36 @@ namespace PotMerge
             titleBlock = new VisualElement { pickingMode = PickingMode.Ignore };
             titleBlock.style.position = Position.Absolute;
             titleBlock.style.left = 0; titleBlock.style.right = 0;
-            titleBlock.style.top = Length.Percent(7);
+            titleBlock.style.top = Length.Percent(8);
             titleBlock.style.alignItems = Align.Center;
-            titleBlock.Add(LetterRow("FLOWER", 190, 0));
-            var pot = LetterRow("POT", 250, 6);
-            pot.style.marginTop = -30;
-            titleBlock.Add(pot);
+            if (titleImage != null)
+            {
+                var img = new VisualElement { pickingMode = PickingMode.Ignore };
+                img.style.width = titleImageWidth;
+                img.style.height = titleImageWidth * titleImage.height / Mathf.Max(1f, titleImage.width);
+                img.style.backgroundImage = new StyleBackground(titleImage);
+                titleBlock.Add(img);
+                titleLetters.Add(img);
+            }
+            else
+            {
+                titleBlock.Add(LetterRow("FLOWER", 190, 0));
+                var pot = LetterRow("POT", 250, 6);
+                pot.style.marginTop = -30;
+                titleBlock.Add(pot);
+            }
             layer.Add(titleBlock);
 
             var tapWrap = new VisualElement { pickingMode = PickingMode.Ignore };
             tapWrap.style.position = Position.Absolute;
             tapWrap.style.left = 0; tapWrap.style.right = 0;
-            tapWrap.style.top = Length.Percent(83);
+            tapWrap.style.top = Length.Percent(84);
             tapWrap.style.alignItems = Align.Center;
             var tapPill = new VisualElement { pickingMode = PickingMode.Ignore };
-            tapPill.style.backgroundColor = new Color(0.25f, 0.17f, 0.12f, 0.55f);
-            Round(tapPill, 40);
-            tapPill.style.paddingLeft = 50; tapPill.style.paddingRight = 50; tapPill.style.paddingTop = 18; tapPill.style.paddingBottom = 18;
-            tapLabel = MakeLabel("TAP TO START", 54, Color.white);
+            tapPill.style.backgroundColor = new Color(1f, 1f, 1f, 0.85f);
+            Round(tapPill, 48);
+            tapPill.style.paddingLeft = 56; tapPill.style.paddingRight = 56; tapPill.style.paddingTop = 20; tapPill.style.paddingBottom = 20;
+            tapLabel = MakeLabel("TAP TO START", 50, PinkDark);
             tapPill.Add(tapLabel);
             tapWrap.Add(tapPill);
             layer.Add(tapWrap);
@@ -110,9 +123,9 @@ namespace PotMerge
             for (int i = 0; i < word.Length; i++)
             {
                 var l = MakeLabel(word[i].ToString(), size, LetterColors[(i + colorOffset) % LetterColors.Length]);
-                l.style.unityTextOutlineWidth = size * 0.045f;
+                l.style.unityTextOutlineWidth = size * 0.05f;
                 l.style.unityTextOutlineColor = Color.white;
-                l.style.textShadow = new TextShadow { offset = new Vector2(0f, size * 0.06f), blurRadius = 0f, color = new Color(0.35f, 0.22f, 0.15f, 0.55f) };
+                l.style.textShadow = new TextShadow { offset = new Vector2(0f, size * 0.06f), blurRadius = 0f, color = new Color(0.35f, 0.22f, 0.15f, 0.45f) };
                 l.style.marginLeft = size * 0.02f; l.style.marginRight = size * 0.02f;
                 row.Add(l);
                 titleLetters.Add(l);
@@ -125,7 +138,7 @@ namespace PotMerge
             var layer = new VisualElement { pickingMode = PickingMode.Ignore };
             Stretch(layer);
 
-            // ---- top bar: coins | collection, settings ----
+            // ---- top bar: coins | settings ----
             var top = new VisualElement { pickingMode = PickingMode.Ignore };
             top.style.position = Position.Absolute;
             top.style.left = 40; top.style.right = 40; top.style.top = 70;
@@ -139,62 +152,20 @@ namespace PotMerge
             homeCoins = MakeLabel("0", 46, Ink);
             coinPill.Add(homeCoins);
             top.Add(coinPill);
-
-            var buttons = new VisualElement { pickingMode = PickingMode.Ignore };
-            buttons.style.flexDirection = FlexDirection.Row;
-            var book = IconButton(IconShape.Book, 110, OpenCollection);
-            book.style.marginRight = 24;
-            buttons.Add(book);
-            buttons.Add(IconButton(IconShape.Gear, 110, OpenSettings));
-            top.Add(buttons);
+            top.Add(IconButton(IconShape.Gear, 110, OpenSettings));
             layer.Add(top);
 
-            // ---- best level per chain ----
-            var chains = new VisualElement { pickingMode = PickingMode.Ignore };
-            chains.style.position = Position.Absolute;
-            chains.style.left = 40; chains.style.right = 40; chains.style.top = 220;
-            chains.style.flexDirection = FlexDirection.Row;
-            chains.style.justifyContent = Justify.SpaceBetween;
-            int n = database != null ? Mathf.Min(database.ChainCount, PlayerData.ChainCount) : 0;
-            for (int c = 0; c < n; c++) chains.Add(ChainCard(c));
-            layer.Add(chains);
-
-            // ---- daily quests (left) ----
-            var quests = Card(40);
-            quests.pickingMode = PickingMode.Position;
-            quests.style.position = Position.Absolute;
-            quests.style.left = 40; quests.style.top = 520;
-            quests.style.width = 600;
-            quests.style.paddingTop = 30; quests.style.paddingBottom = 30; quests.style.paddingLeft = 32; quests.style.paddingRight = 32;
-            var qHeader = new VisualElement { pickingMode = PickingMode.Ignore };
-            qHeader.style.flexDirection = FlexDirection.Row;
-            qHeader.style.alignItems = Align.Center;
-            qHeader.style.marginBottom = 18;
-            qHeader.Add(MakeLabel("DAILY QUESTS", 40, Ink));
-            questBadge = MakeLabel("", 30, Color.white);
-            questBadge.style.backgroundColor = Pink;
-            Round(questBadge, 22);
-            questBadge.style.paddingLeft = 14; questBadge.style.paddingRight = 14;
-            questBadge.style.marginLeft = 16;
-            qHeader.Add(questBadge);
-            quests.Add(qHeader);
-            questList = new VisualElement { pickingMode = PickingMode.Ignore };
-            quests.Add(questList);
-            layer.Add(quests);
-
-            // ---- shop (right) ----
-            var shop = new VisualElement { pickingMode = PickingMode.Ignore };
-            shop.style.position = Position.Absolute;
-            shop.style.right = 40; shop.style.top = 520;
-            shop.style.alignItems = Align.Center;
-            var shopBtn = IconButton(IconShape.Bag, 150, OpenShop, PinkDark);
-            shop.Add(shopBtn);
-            var shopLabel = MakeLabel("SHOP", 38, Color.white);
-            shopLabel.style.marginTop = 8;
-            shopLabel.style.unityTextOutlineWidth = 3f;
-            shopLabel.style.unityTextOutlineColor = new Color(0.35f, 0.22f, 0.15f);
-            shop.Add(shopLabel);
-            layer.Add(shop);
+            // ---- three round menu buttons above GAME START ----
+            var menu = new VisualElement { pickingMode = PickingMode.Ignore };
+            menu.style.position = Position.Absolute;
+            menu.style.left = 0; menu.style.right = 0;
+            menu.style.top = Length.Percent(58);
+            menu.style.flexDirection = FlexDirection.Row;
+            menu.style.justifyContent = Justify.Center;
+            menu.Add(MenuButton(IconShape.Star, "QUESTS", new Color(1f, 0.72f, 0.25f), OpenQuests, out questBadge));
+            menu.Add(MenuButton(IconShape.Book, "COLLECTION", new Color(0.40f, 0.70f, 0.95f), OpenCollection, out _));
+            menu.Add(MenuButton(IconShape.Bag, "SHOP", PinkDark, OpenShop, out _));
+            layer.Add(menu);
 
             // ---- GAME START at 3/4 of the screen height ----
             var startWrap = new VisualElement { pickingMode = PickingMode.Ignore };
@@ -203,34 +174,37 @@ namespace PotMerge
             startWrap.style.top = Length.Percent(75);
             startWrap.style.alignItems = Align.Center;
             startWrap.style.translate = new Translate(0, Length.Percent(-50));
-            startButton = BigButton("GAME START", 640, 180, 70, Green, GreenDark, () => StartClicked?.Invoke());
+            startButton = BigButton("GAME START", 660, 180, 70, Green, GreenDark, () => StartClicked?.Invoke());
             startWrap.Add(startButton);
             layer.Add(startWrap);
             return layer;
         }
 
-        VisualElement ChainCard(int chain)
+        static VisualElement MenuButton(IconShape shape, string text, Color iconColor, Action onClick, out Label badge)
         {
-            var ch = database.Get(chain);
-            var card = Card(36);
-            card.pickingMode = PickingMode.Ignore;
-            card.style.width = 232;
-            card.style.paddingTop = 14; card.style.paddingBottom = 16;
-            card.style.alignItems = Align.Center;
-            card.style.borderTopWidth = 10;
-            card.style.borderTopColor = ch.color;
+            var wrap = new VisualElement { pickingMode = PickingMode.Ignore };
+            wrap.style.alignItems = Align.Center;
+            wrap.style.width = 250;
+            var btn = IconButton(shape, 170, onClick, iconColor);
+            wrap.Add(btn);
 
-            var icon = new VisualElement { pickingMode = PickingMode.Ignore };
-            icon.style.width = 150; icon.style.height = 150;
-            card.Add(icon);
-            chainIcons.Add(icon);
+            badge = MakeLabel("", 34, Color.white);
+            badge.style.position = Position.Absolute;
+            badge.style.top = -6; badge.style.right = 34;
+            badge.style.minWidth = 56; badge.style.height = 56;
+            badge.style.unityTextAlign = TextAnchor.MiddleCenter;
+            badge.style.backgroundColor = Pink;
+            Round(badge, 28);
+            Border(badge, 5, Color.white);
+            badge.style.display = DisplayStyle.None;
+            wrap.Add(badge);
 
-            var name = MakeLabel(ch.displayName, 30, InkSoft);
-            card.Add(name);
-            var lv = MakeLabel("-", 36, Ink);
-            card.Add(lv);
-            chainLevels.Add(lv);
-            return card;
+            var label = MakeLabel(text, 34, Color.white);
+            label.style.marginTop = 10;
+            label.style.unityTextOutlineWidth = 3f;
+            label.style.unityTextOutlineColor = new Color(0.35f, 0.22f, 0.15f);
+            wrap.Add(label);
+            return wrap;
         }
 
         // ------------------------------------------------------------------ screens
@@ -261,21 +235,35 @@ namespace PotMerge
         {
             dirty = false;
             homeCoins.text = Format(PlayerData.Coins);
-
-            for (int c = 0; c < chainIcons.Count; c++)
-            {
-                int best = PlayerData.Best(c);
-                var tex = best > 0 ? database.Icon(c, best) : null;
-                chainIcons[c].style.backgroundImage = tex != null ? new StyleBackground(tex) : new StyleBackground(StyleKeyword.None);
-                chainLevels[c].text = best > 0 ? $"Lv {best}/{database.MaxLevel}" : "Lv -";
-            }
-
-            questList.Clear();
-            var quests = PlayerData.Quests;
-            for (int i = 0; i < quests.Count; i++) questList.Add(QuestRow(quests[i], i));
             int claimable = PlayerData.ClaimableQuestCount();
-            questBadge.text = claimable > 0 ? claimable.ToString() : "";
+            questBadge.text = claimable.ToString();
             Show(questBadge, claimable > 0);
+        }
+
+        // ------------------------------------------------------------------ popups
+        void ClosePopups()
+        {
+            questsOpen = false;
+            popupLayer?.Clear();
+        }
+
+        void OpenPopup(VisualElement popup)
+        {
+            ClosePopups();
+            popupLayer.Add(popup);
+        }
+
+        void OpenQuests()
+        {
+            var popup = Popup("DAILY QUESTS", 900, out var body, ClosePopups);
+            var quests = PlayerData.Quests;
+            for (int i = 0; i < quests.Count; i++) body.Add(QuestRow(quests[i], i));
+            var note = MakeLabel("New quests every day", 28, InkSoft);
+            note.style.marginTop = 24;
+            note.style.unityTextAlign = TextAnchor.MiddleCenter;
+            body.Add(note);
+            OpenPopup(popup);
+            questsOpen = true;
         }
 
         VisualElement QuestRow(Quest q, int index)
@@ -283,52 +271,57 @@ namespace PotMerge
             var row = new VisualElement { pickingMode = PickingMode.Ignore };
             row.style.flexDirection = FlexDirection.Row;
             row.style.alignItems = Align.Center;
-            row.style.marginTop = 12;
-            row.style.paddingTop = 14; row.style.paddingBottom = 14; row.style.paddingLeft = 18; row.style.paddingRight = 14;
+            row.style.marginTop = 16;
+            row.style.paddingTop = 22; row.style.paddingBottom = 22; row.style.paddingLeft = 36; row.style.paddingRight = 22;
             row.style.backgroundColor = new Color(0.96f, 0.92f, 0.84f);
-            Round(row, 26);
+            Round(row, 60);
 
             var info = new VisualElement { pickingMode = PickingMode.Ignore };
             info.style.flexGrow = 1;
             info.style.flexShrink = 1;
-            var text = MakeLabel(PlayerData.QuestText(q), 30, q.claimed ? InkSoft : Ink);
+            var text = MakeLabel(PlayerData.QuestText(q), 36, q.claimed ? InkSoft : Ink);
             text.style.whiteSpace = WhiteSpace.Normal;
             info.Add(text);
 
+            var barRow = new VisualElement { pickingMode = PickingMode.Ignore };
+            barRow.style.flexDirection = FlexDirection.Row;
+            barRow.style.alignItems = Align.Center;
+            barRow.style.marginTop = 12;
             var barBg = new VisualElement { pickingMode = PickingMode.Ignore };
-            barBg.style.height = 18;
-            barBg.style.marginTop = 10;
+            barBg.style.height = 24;
+            barBg.style.flexGrow = 1;
             barBg.style.backgroundColor = new Color(0.86f, 0.80f, 0.70f);
-            Round(barBg, 9);
+            Round(barBg, 12);
             var bar = new VisualElement { pickingMode = PickingMode.Ignore };
-            bar.style.height = 18;
+            bar.style.height = 24;
             bar.style.width = Length.Percent(100f * Mathf.Clamp01(q.progress / (float)Mathf.Max(1, q.target)));
             bar.style.backgroundColor = q.Done ? Green : Gold;
-            Round(bar, 9);
+            Round(bar, 12);
             barBg.Add(bar);
-            info.Add(barBg);
-
-            var count = MakeLabel($"{q.progress}/{q.target}", 24, InkSoft);
-            count.style.marginTop = 4;
-            info.Add(count);
+            barRow.Add(barBg);
+            var count = MakeLabel($"{q.progress}/{q.target}", 28, InkSoft);
+            count.style.marginLeft = 16;
+            count.style.minWidth = 80;
+            barRow.Add(count);
+            info.Add(barRow);
             row.Add(info);
 
             var right = new VisualElement { pickingMode = PickingMode.Ignore };
-            right.style.width = 150;
+            right.style.width = 190;
             right.style.alignItems = Align.Center;
-            right.style.marginLeft = 12;
+            right.style.marginLeft = 16;
             if (q.claimed)
             {
-                right.Add(Icon(IconShape.Check, 56, Green));
+                right.Add(Icon(IconShape.Check, 64, Green));
             }
             else if (q.Done)
             {
-                var claim = BigButton("", 150, 92, 30, Pink, PinkDark, () => Claim(index));
+                var claim = BigButton("", 180, 100, 30, Pink, PinkDark, () => Claim(index));
                 var line = new VisualElement { pickingMode = PickingMode.Ignore };
                 line.style.flexDirection = FlexDirection.Row;
                 line.style.alignItems = Align.Center;
-                line.Add(CoinIcon(34, 6));
-                line.Add(MakeLabel("+" + q.reward, 34, Color.white));
+                line.Add(CoinIcon(40, 8));
+                line.Add(MakeLabel("+" + q.reward, 38, Color.white));
                 claim.Add(line);
                 right.Add(claim);
             }
@@ -337,8 +330,8 @@ namespace PotMerge
                 var line = new VisualElement { pickingMode = PickingMode.Ignore };
                 line.style.flexDirection = FlexDirection.Row;
                 line.style.alignItems = Align.Center;
-                line.Add(CoinIcon(38, 8));
-                line.Add(MakeLabel("+" + q.reward, 36, Ink));
+                line.Add(CoinIcon(44, 8));
+                line.Add(MakeLabel("+" + q.reward, 40, Ink));
                 right.Add(line);
             }
             row.Add(right);
@@ -350,15 +343,7 @@ namespace PotMerge
             int reward = PlayerData.ClaimQuest(index);
             if (reward > 0) SoundFx.Coin();
             RefreshHome();
-        }
-
-        // ------------------------------------------------------------------ popups
-        void ClosePopups() => popupLayer?.Clear();
-
-        void OpenPopup(VisualElement popup)
-        {
-            ClosePopups();
-            popupLayer.Add(popup);
+            OpenQuests();
         }
 
         public void OpenSettings()
@@ -370,6 +355,9 @@ namespace PotMerge
             soundRow.style.justifyContent = Justify.SpaceBetween;
             soundRow.style.alignItems = Align.Center;
             soundRow.style.marginBottom = 40;
+            soundRow.style.paddingLeft = 36; soundRow.style.paddingRight = 18; soundRow.style.paddingTop = 18; soundRow.style.paddingBottom = 18;
+            soundRow.style.backgroundColor = new Color(0.96f, 0.92f, 0.84f);
+            Round(soundRow, 70);
             soundRow.Add(MakeLabel("Sound", 48, Ink));
             Button toggle = null;
             Label toggleLabel = MakeLabel("", 44, Color.white);
@@ -428,8 +416,9 @@ namespace PotMerge
         void OpenCollection()
         {
             int total = database.ChainCount * database.MaxLevel;
-            var popup = Popup($"COLLECTION  {PlayerData.UnlockedCount()}/{total}", 960, out var body, ClosePopups);
+            var popup = Popup($"COLLECTION  {PlayerData.UnlockedCount()}/{total}", 980, out var body, ClosePopups);
 
+            // one tab per chain, showing that chain's best level
             var tabs = new VisualElement { pickingMode = PickingMode.Ignore };
             tabs.style.flexDirection = FlexDirection.Row;
             tabs.style.justifyContent = Justify.SpaceBetween;
@@ -439,10 +428,15 @@ namespace PotMerge
                 int chain = c;
                 var ch = database.Get(c);
                 bool sel = c == collectionChain;
-                var tab = BigButton(ch.displayName, 196, 90, 30,
-                    sel ? ch.color : new Color(0.88f, 0.84f, 0.76f),
+                var tab = BigButton("", 204, 120, 30,
+                    sel ? ch.color : new Color(0.90f, 0.86f, 0.78f),
                     sel ? Color.Lerp(ch.color, Color.black, 0.3f) : CreamShadow,
                     () => { collectionChain = chain; OpenCollection(); });
+                var name = MakeLabel(ch.displayName, 30, sel ? Color.white : InkSoft);
+                int best = PlayerData.Best(c);
+                var lv = MakeLabel(best > 0 ? $"Lv {best}/{database.MaxLevel}" : "Lv -", 26, sel ? new Color(1f, 1f, 1f, 0.9f) : InkSoft);
+                tab.Add(name);
+                tab.Add(lv);
                 tabs.Add(tab);
             }
             body.Add(tabs);
@@ -460,17 +454,21 @@ namespace PotMerge
         {
             bool unlocked = PlayerData.IsUnlocked(chain, level);
             var cell = new VisualElement { pickingMode = PickingMode.Ignore };
-            cell.style.width = 196; cell.style.height = 250;
+            cell.style.width = 200; cell.style.height = 250;
             cell.style.marginRight = level % 4 == 0 ? 0 : 16;
             cell.style.marginBottom = 18;
             cell.style.backgroundColor = unlocked ? new Color(0.96f, 0.92f, 0.84f) : new Color(0.90f, 0.87f, 0.82f);
-            Round(cell, 28);
+            Round(cell, 60);
             cell.style.alignItems = Align.Center;
-            cell.style.paddingTop = 12;
+            cell.style.paddingTop = 14;
 
-            var lvLabel = MakeLabel(level.ToString(), 24, InkSoft);
+            var lvLabel = MakeLabel(level.ToString(), 24, Color.white);
             lvLabel.style.position = Position.Absolute;
-            lvLabel.style.left = 16; lvLabel.style.top = 10;
+            lvLabel.style.left = 14; lvLabel.style.top = 12;
+            lvLabel.style.width = 40; lvLabel.style.height = 40;
+            lvLabel.style.unityTextAlign = TextAnchor.MiddleCenter;
+            lvLabel.style.backgroundColor = unlocked ? database.Get(chain).color : Disabled;
+            Round(lvLabel, 20);
             cell.Add(lvLabel);
 
             var icon = new VisualElement { pickingMode = PickingMode.Ignore };
@@ -520,17 +518,22 @@ namespace PotMerge
                 for (int i = 0; i < titleLetters.Count; i++)
                 {
                     float y = Mathf.Sin(t * 2.2f - i * 0.55f) * 22f;
-                    float r = Mathf.Sin(t * 1.6f - i * 0.7f) * 4f;
+                    float r = Mathf.Sin(t * 1.6f - i * 0.7f) * (titleImage != null ? 2f : 4f);
                     titleLetters[i].style.translate = new Translate(0, y);
                     titleLetters[i].style.rotate = new Rotate(r);
                 }
                 titleBlock.style.translate = new Translate(Mathf.Sin(t * 0.6f) * 12f, Mathf.Sin(t * 0.9f) * 10f);
-                tapLabel.style.opacity = 0.55f + 0.45f * Mathf.Sin(t * 3.2f);
+                float p = 1f + 0.04f * Mathf.Sin(t * 3.2f);
+                tapLabel.parent.style.scale = new Scale(new Vector3(p, p, 1f));
             }
 
             if (homeLayer.style.display != DisplayStyle.None)
             {
-                if (dirty) RefreshHome();
+                if (dirty)
+                {
+                    RefreshHome();
+                    if (questsOpen) OpenQuests();
+                }
                 float s = 1f + 0.035f * Mathf.Sin(t * 3f);
                 startButton.style.scale = new Scale(new Vector3(s, s, 1f));
             }

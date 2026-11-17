@@ -11,15 +11,20 @@ namespace PotMerge
         public ChainDatabase database;
         public int chain = 0; // Flower
         public Vector3 offset = new Vector3(80f, 0f, 0f);
-        public Color sky = new Color(0.78f, 0.90f, 0.98f);
-        public Color grass = new Color(0.42f, 0.68f, 0.33f);
-        public Color path = new Color(0.86f, 0.72f, 0.56f);
+        [Tooltip("Shop model for the title/home. Empty = the Flower chain's level 11 shop.")]
+        public GameObject heroModel;
+        public float shopSize = 6f;
+        public float islandSize = 11f;
+        public Color sky = new Color(0.80f, 0.91f, 0.99f);
+        public Color grass = new Color(0.55f, 0.82f, 0.45f);
+        public Color soil = new Color(0.72f, 0.52f, 0.38f);
+        public Color path = new Color(0.98f, 0.86f, 0.70f);
 
         [Header("Camera")]
-        public Vector3 cameraLocalPos = new Vector3(0f, 4.2f, -19f);
-        public float cameraPitch = 3f;
+        public Vector3 cameraLocalPos = new Vector3(0f, 6f, -17f);
+        public float cameraPitch = 12f;
         public float cameraFov = 50f;
-        public float swayDegrees = 2.5f;
+        public float swayDegrees = 5f;
 
         Transform root;
         Camera cam;
@@ -37,44 +42,21 @@ namespace PotMerge
             root.SetParent(transform, false);
             root.position = offset;
 
-            Ground("Grass", new Vector3(0f, -0.05f, 6f), new Vector3(60f, 0.1f, 40f), grass);
-            Ground("Path", new Vector3(0f, -0.02f, -2f), new Vector3(2.6f, 0.1f, 12f), path);
-            Ground("Plaza", new Vector3(0f, -0.03f, 2.6f), new Vector3(11f, 0.1f, 3.4f), path);
+            // one cute shop on a soft round island floating in the sky
+            var island = RoundedMesh.Create("Island", root, islandSize, islandSize, 0.8f, islandSize * 0.5f, 0.35f, grass);
+            island.transform.localPosition = new Vector3(0f, -0.4f, 0f);
+            var under = RoundedMesh.Create("IslandSoil", root, islandSize * 0.92f, islandSize * 0.92f, 0.9f, islandSize * 0.46f, 0.3f, soil);
+            under.transform.localPosition = new Vector3(0f, -1.1f, 0f);
+            var mat = RoundedMesh.Create("DoorMat", root, 2.2f, 2.6f, 0.06f, 1.0f, 0.02f, path);
+            mat.transform.localPosition = new Vector3(0f, 0.02f, -2.6f);
 
-            // shop in the back, stall on the left, plants along the path
-            Item(11, new Vector3(0f, 0f, 5.5f), 7f, 6.8f);
-            Item(10, new Vector3(-5.6f, 0f, 3.8f), 3.4f, 3.6f);
-            Item(9, new Vector3(5.2f, 0f, 3.6f), 1.5f, 2.0f);
-            Item(7, new Vector3(6.0f, 0f, 1.6f), 1.2f, 1.6f);
-            Item(6, new Vector3(-2.5f, 0f, 1.2f), 1.0f, 1.4f);
-            Item(6, new Vector3(2.5f, 0f, 1.2f), 1.0f, 1.4f);
-            Item(4, new Vector3(-2.2f, 0f, -2.6f), 0.8f, 1.0f);
-            Item(5, new Vector3(2.2f, 0f, -2.6f), 0.8f, 1.1f);
-            Item(8, new Vector3(-5.4f, 0f, 0.8f), 1.1f, 1.6f);
-            Item(3, new Vector3(-4.0f, 0f, -1.4f), 0.8f, 0.9f);
-            Item(2, new Vector3(4.0f, 0f, -1.4f), 0.8f, 0.8f);
+            var holder = new GameObject("Shop").transform;
+            holder.SetParent(root, false);
+            holder.localPosition = new Vector3(0f, 0f, 0.4f);
+            var model = heroModel != null ? heroModel : (database.IsValid(chain, 11) ? database.Model(chain, 11) : null);
+            if (model != null) ModelUtil.Spawn(model, holder, shopSize, shopSize);
 
             root.gameObject.SetActive(showing);
-        }
-
-        void Ground(string name, Vector3 pos, Vector3 size, Color c)
-        {
-            var g = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            g.name = name;
-            Destroy(g.GetComponent<Collider>());
-            g.transform.SetParent(root, false);
-            g.transform.localPosition = pos;
-            g.transform.localScale = size;
-            g.GetComponent<Renderer>().material.color = c;
-        }
-
-        void Item(int level, Vector3 pos, float footprint, float height)
-        {
-            if (!database.IsValid(chain, level)) return;
-            var holder = new GameObject($"{database.Get(chain).id}_L{level}").transform;
-            holder.SetParent(root, false);
-            holder.localPosition = pos;
-            ModelUtil.Spawn(database.Model(chain, level), holder, footprint, height);
         }
 
         /// <summary>Takes over the camera and shows the diorama.</summary>
@@ -122,9 +104,7 @@ namespace PotMerge
             if (cam == null) return;
             float yaw = Mathf.Sin(t * 0.35f) * swayDegrees;
             var rot = Quaternion.Euler(cameraPitch, yaw, 0f);
-            Vector3 pivot = offset + new Vector3(0f, 0f, 3f);
-            Vector3 local = cameraLocalPos - new Vector3(0f, 0f, 3f);
-            cam.transform.position = pivot + Quaternion.Euler(0f, yaw, 0f) * local;
+            cam.transform.position = offset + Quaternion.Euler(0f, yaw, 0f) * cameraLocalPos;
             cam.transform.rotation = rot;
         }
     }

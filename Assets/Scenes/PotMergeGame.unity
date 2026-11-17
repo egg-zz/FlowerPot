@@ -151,6 +151,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PotMerge.MenuUI
   database: {fileID: 11400000, guid: c0644365ffe7b564ba5201ee08144e46, type: 2}
   board: {fileID: 745008899}
+  titleImage: {fileID: 0}
+  titleImageWidth: 900
 --- !u!114 &464333934
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -329,7 +331,7 @@ MonoBehaviour:
   spawnMinLevel: 1
   earlySpawnMaxLevel: 2
   spawnMaxLevel: 4
-  spawnCost: 1
+  coinsPerLevel: 1
   hintDelay: 6
   cam: {fileID: 767847129}
   hud: {fileID: 2141879631}
@@ -521,13 +523,17 @@ MonoBehaviour:
   database: {fileID: 11400000, guid: c0644365ffe7b564ba5201ee08144e46, type: 2}
   chain: 0
   offset: {x: 80, y: 0, z: 0}
-  sky: {r: 0.78, g: 0.9, b: 0.98, a: 1}
-  grass: {r: 0.42, g: 0.68, b: 0.33, a: 1}
-  path: {r: 0.86, g: 0.72, b: 0.56, a: 1}
-  cameraLocalPos: {x: 0, y: 4.2, z: -19}
-  cameraPitch: 3
+  heroModel: {fileID: 0}
+  shopSize: 6
+  islandSize: 11
+  sky: {r: 0.8, g: 0.91, b: 0.99, a: 1}
+  grass: {r: 0.55, g: 0.82, b: 0.45, a: 1}
+  soil: {r: 0.72, g: 0.52, b: 0.38, a: 1}
+  path: {r: 0.98, g: 0.86, b: 0.7, a: 1}
+  cameraLocalPos: {x: 0, y: 6, z: -17}
+  cameraPitch: 12
   cameraFov: 50
-  swayDegrees: 2.5
+  swayDegrees: 5
 --- !u!4 &972003700
 Transform:
   m_ObjectHideFlags: 0

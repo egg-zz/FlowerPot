@@ -4,7 +4,7 @@ using UnityEngine.UIElements;
 
 namespace PotMerge
 {
-    public enum IconShape { Home, Gear, Book, Bag, Close, Check }
+    public enum IconShape { Home, Gear, Book, Bag, Close, Check, Star }
 
     /// <summary>Shared look for all runtime-built UI Toolkit screens (reference resolution 1080x1920).</summary>
     public static class UIKit
@@ -22,9 +22,26 @@ namespace PotMerge
         public static readonly Color Gold = new Color(1f, 0.78f, 0.18f);
         public static readonly Color Dim = new Color(0.1f, 0.07f, 0.05f, 0.6f);
 
+        static bool fontLoaded;
+        static Font roundFont;
+
+        /// <summary>
+        /// Optional rounded font: put a font at Assets/PotMerge/Resources/RoundFont.ttf (or .otf) and every label uses it.
+        /// Without it the default UI font is used.
+        /// </summary>
+        public static Font RoundFont
+        {
+            get
+            {
+                if (!fontLoaded) { roundFont = Resources.Load<Font>("RoundFont"); fontLoaded = true; }
+                return roundFont;
+            }
+        }
+
         public static Label MakeLabel(string text, float size, Color color)
         {
             var l = new Label(text) { pickingMode = PickingMode.Ignore };
+            if (RoundFont != null) l.style.unityFontDefinition = FontDefinition.FromFont(RoundFont);
             l.style.fontSize = size;
             l.style.color = color;
             l.style.unityFontStyleAndWeight = FontStyle.Bold;
@@ -46,7 +63,7 @@ namespace PotMerge
             return v;
         }
 
-        public static VisualElement Card(float radius = 44f)
+        public static VisualElement Card(float radius = 64f)
         {
             var v = new VisualElement();
             v.style.backgroundColor = Cream;
@@ -61,7 +78,7 @@ namespace PotMerge
         {
             var b = new Button(() => { SoundFx.Tap(); onClick?.Invoke(); }) { text = "" };
             b.style.width = width; b.style.height = height;
-            Round(b, Mathf.Min(height * 0.32f, 50f));
+            Round(b, height * 0.5f); // pill shape
             Border(b, 0, Color.clear);
             b.style.borderBottomWidth = Mathf.Round(height * 0.085f);
             b.style.backgroundColor = face;
@@ -190,6 +207,24 @@ namespace PotMerge
                         p.Arc(new Vector2(s * 0.5f, s * 0.34f), s * 0.2f, 180f, 360f);
                         p.Stroke();
                         break;
+                    case IconShape.Star:
+                    {
+                        // chubby star: 5 points with rounded joins
+                        var c = new Vector2(s * 0.5f, s * 0.54f);
+                        p.lineWidth = s * 0.12f;
+                        p.BeginPath();
+                        for (int i = 0; i < 10; i++)
+                        {
+                            float a = -Mathf.PI / 2f + i * Mathf.PI / 5f;
+                            float r = i % 2 == 0 ? s * 0.42f : s * 0.2f;
+                            var pt = c + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * r;
+                            if (i == 0) p.MoveTo(pt); else p.LineTo(pt);
+                        }
+                        p.ClosePath();
+                        p.Fill();
+                        p.Stroke();
+                        break;
+                    }
                     case IconShape.Close:
                         p.lineWidth = s * 0.16f;
                         p.BeginPath();
@@ -259,7 +294,7 @@ namespace PotMerge
             overlay.style.justifyContent = Justify.Center;
             overlay.RegisterCallback<PointerDownEvent>(e => { if (e.target == overlay) onClose?.Invoke(); });
 
-            var card = Card(56);
+            var card = Card(80);
             card.style.width = width;
             card.style.paddingTop = 50; card.style.paddingBottom = 60; card.style.paddingLeft = 56; card.style.paddingRight = 56;
             card.style.alignItems = Align.Stretch;

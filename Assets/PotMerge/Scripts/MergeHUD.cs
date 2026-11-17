@@ -82,8 +82,8 @@ namespace PotMerge
             bottom.style.paddingBottom = 120;
 
             spawnButton = BigButton("", 440, 140, 50, Green, GreenDark, () => SpawnClicked?.Invoke());
-            spawnTitle = MakeLabel("ADD ITEM", 50, Color.white);
-            spawnCost = MakeLabel("1 coin", 30, new Color(1f, 0.95f, 0.7f));
+            spawnTitle = MakeLabel("ADD ITEM", 54, Color.white);
+            spawnCost = MakeLabel("", 30, new Color(1f, 0.95f, 0.7f));
             spawnButton.Add(spawnTitle);
             spawnButton.Add(spawnCost);
             bottom.Add(spawnButton);
@@ -140,6 +140,7 @@ namespace PotMerge
             SetButtonColors(spawnButton, enabled ? Green : Disabled, enabled ? GreenDark : DisabledDark);
             spawnTitle.text = title;
             spawnCost.text = subtitle;
+            Show(spawnCost, !string.IsNullOrEmpty(subtitle));
         }
 
         public void ShowGameOver(bool show, string info)

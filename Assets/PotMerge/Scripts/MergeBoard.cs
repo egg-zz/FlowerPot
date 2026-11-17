@@ -11,7 +11,8 @@ namespace PotMerge
     ///  - Only the same chain + same level merge. Dropping onto any other item swaps them.
     ///  - Merging two level-N items gives one level-(N+1) item and +N coins.
     ///  - New game: at least 20 coins, 7 random items (any chain, level 1-2).
-    ///  - 1 coin adds a random item (any chain) as long as there is an empty cell:
+    ///  - ADD ITEM spawns a random item (any chain) and costs its level in coins (only affordable levels roll),
+    ///    as long as there is an empty cell. Spawn range:
     ///    level 1-2 at first; making a level 4 opens 1-3, making a level 5 opens 1-4 (per game).
     ///  - No merge possible and (no coins or board full) = game over.
     /// Coins, unlocks and quests live in <see cref="PlayerData"/>; this class saves only the board.
@@ -41,7 +42,8 @@ namespace PotMerge
         public int earlySpawnMaxLevel = 2;
         [Tooltip("Spawn range grows with this game's best item: making level N allows spawns up to N-1, capped here")]
         public int spawnMaxLevel = 4;
-        public int spawnCost = 1;
+        [Tooltip("ADD ITEM costs (item level x this) coins: a level 1 item costs 1, a level 3 item costs 3")]
+        public int coinsPerLevel = 1;
         public float hintDelay = 6f;
 
         [Header("Refs")]
@@ -189,32 +191,20 @@ namespace PotMerge
             var boardRoot = new GameObject("BoardVisual").transform;
             boardRoot.SetParent(transform, false);
 
-            var slab = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            slab.name = "Slab";
-            Destroy(slab.GetComponent<Collider>());
-            slab.transform.SetParent(boardRoot, false);
-            slab.transform.localScale = new Vector3(columns * cellSize + 0.5f, 0.5f, rows * cellSize + 0.5f);
+            // soft, rounded board: a pillowy slab with rounded tiles
+            var slab = RoundedMesh.Create("Slab", boardRoot, columns * cellSize + 0.7f, rows * cellSize + 0.7f, 0.5f, 0.9f, 0.18f, boardColor);
             slab.transform.localPosition = new Vector3(0f, -0.3f, 0f);
-            SetColor(slab, boardColor);
 
+            float tileSize = cellSize * 0.9f;
             for (int x = 0; x < columns; x++)
             for (int y = 0; y < rows; y++)
             {
-                var tile = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                tile.name = $"Tile_{x}_{y}";
-                Destroy(tile.GetComponent<Collider>());
-                tile.transform.SetParent(boardRoot, false);
-                tile.transform.localScale = new Vector3(cellSize * 0.92f, 0.12f, cellSize * 0.92f);
-                tile.transform.position = CellToWorld(new Vector2Int(x, y)) + Vector3.down * 0.06f;
-                SetColor(tile, (x + y) % 2 == 0 ? tileA : tileB);
+                var tile = RoundedMesh.Create($"Tile_{x}_{y}", boardRoot, tileSize, tileSize, 0.14f, tileSize * 0.24f, 0.06f,
+                    (x + y) % 2 == 0 ? tileA : tileB);
+                tile.transform.position = CellToWorld(new Vector2Int(x, y)) + Vector3.down * 0.07f;
             }
 
-            var hl = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            hl.name = "DropHighlight";
-            Destroy(hl.GetComponent<Collider>());
-            hl.transform.SetParent(boardRoot, false);
-            hl.transform.localScale = new Vector3(cellSize * 0.92f, 0.14f, cellSize * 0.92f);
-            SetColor(hl, new Color(1f, 0.95f, 0.55f));
+            var hl = RoundedMesh.Create("DropHighlight", boardRoot, tileSize, tileSize, 0.16f, tileSize * 0.24f, 0.06f, new Color(1f, 0.95f, 0.55f));
             hl.SetActive(false);
             highlight = hl.transform;
         }
@@ -475,26 +465,36 @@ namespace PotMerge
                 ShowHint();
                 return;
             }
-            if (!PlayerData.TrySpend(spawnCost))
+            int maxAffordable = AffordableSpawnMax;
+            if (maxAffordable < spawnMinLevel)
             {
                 hud?.ShowToast("Not enough coins", new Color(1f, 0.6f, 0.5f));
                 SoundFx.Error();
                 return;
             }
-            RandomItem(out int chain, out int lv);
-            SpawnRandom(chain, lv, 0f);
+            // the item costs its level: roll only levels the player can pay for
+            RandomItem(out int chain, out int lv, maxAffordable);
+            long cost = (long)lv * coinsPerLevel;
+            if (!PlayerData.TrySpend(cost)) return;
+            var item = SpawnRandom(chain, lv, 0f);
             PlayerData.OnAddItem();
             SoundFx.Coin();
+            if (item != null)
+                hud?.FloatText(CellToWorld(item.Cell) + Vector3.up * 1.6f, "-" + cost, new Color(1f, 0.55f, 0.45f), 52f);
             hud?.SetCoins(Coins, true);
             RefreshState();
             Save();
         }
 
-        void RandomItem(out int chain, out int level)
+        void RandomItem(out int chain, out int level, int maxLevel = int.MaxValue)
         {
             chain = UnityEngine.Random.Range(0, ChainCount);
-            level = UnityEngine.Random.Range(spawnMinLevel, Mathf.Min(CurrentSpawnMax, MaxLevel) + 1);
+            int max = Mathf.Min(CurrentSpawnMax, MaxLevel, maxLevel);
+            level = UnityEngine.Random.Range(spawnMinLevel, Mathf.Max(spawnMinLevel, max) + 1);
         }
+
+        /// <summary>Highest level ADD ITEM may roll right now: spawn range capped by what the coins can pay for.</summary>
+        int AffordableSpawnMax => (int)Math.Min(CurrentSpawnMax, Coins / Math.Max(1, coinsPerLevel));
 
         /// <summary>
         /// Grows step by step with this game's best item: levels 1-2 at first,
@@ -502,13 +502,13 @@ namespace PotMerge
         /// </summary>
         int CurrentSpawnMax => Mathf.Clamp(bestLevel - 1, earlySpawnMaxLevel, Mathf.Max(earlySpawnMaxLevel, spawnMaxLevel));
 
-        void SpawnRandom(int chain, int level, float delay)
+        PotItem SpawnRandom(int chain, int level, float delay)
         {
             var empty = new List<Vector2Int>();
             for (int x = 0; x < columns; x++)
             for (int y = 0; y < rows; y++)
                 if (grid[x, y] == null) empty.Add(new Vector2Int(x, y));
-            if (empty.Count == 0) return;
+            if (empty.Count == 0) return null;
 
             var cell = empty[UnityEngine.Random.Range(0, empty.Count)];
             var item = CreateItem(chain, level, cell);
@@ -518,6 +518,7 @@ namespace PotMerge
             StartCoroutine(DelayedDrop(item, target, delay));
             if (TrackBest(chain, level) && delay <= 0f)
                 hud?.ShowToast("NEW! " + database.LevelName(chain, level), Color.white);
+            return item;
         }
 
         IEnumerator DelayedDrop(PotItem item, Vector3 target, float delay)
@@ -604,9 +605,12 @@ namespace PotMerge
             if (full)
                 hud.SetSpawn("BOARD FULL", "make room first", false);
             else
-                hud.SetSpawn("ADD ITEM", spawnCost + (spawnCost == 1 ? " coin" : " coins"), Coins >= spawnCost);
+            {
+                bool canPay = AffordableSpawnMax >= spawnMinLevel;
+                hud.SetSpawn("ADD ITEM", canPay ? "" : "not enough coins", canPay);
+            }
 
-            bool over = !canMerge && (full || Coins < spawnCost);
+            bool over = !canMerge && (full || AffordableSpawnMax < spawnMinLevel);
             if (over && !gameOver)
             {
                 gameOver = true;
