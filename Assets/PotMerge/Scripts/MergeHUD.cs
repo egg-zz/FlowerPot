@@ -2,22 +2,18 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UIElements;
+using static PotMerge.UIKit;
 
 namespace PotMerge
 {
-    /// <summary>Runtime-built UI Toolkit HUD: coins, best level, spawn button, toasts and floating texts.</summary>
+    /// <summary>Runtime-built UI Toolkit HUD for the game screen: coins, home/settings, spawn button, toasts and floating texts.</summary>
     [RequireComponent(typeof(UIDocument))]
     public class MergeHUD : MonoBehaviour
     {
         public event Action SpawnClicked;
         public event Action RestartClicked;
-
-        static readonly Color Ink = new Color(0.20f, 0.16f, 0.13f);
-        static readonly Color Cream = new Color(1f, 0.98f, 0.93f);
-        static readonly Color Green = new Color(0.33f, 0.74f, 0.36f);
-        static readonly Color GreenDark = new Color(0.22f, 0.55f, 0.25f);
-        static readonly Color Disabled = new Color(0.62f, 0.62f, 0.60f);
-        static readonly Color Gold = new Color(1f, 0.78f, 0.18f);
+        public event Action HomeClicked;
+        public event Action SettingsClicked;
 
         VisualElement root;
         VisualElement fxLayer;
@@ -46,10 +42,9 @@ namespace PotMerge
             root.style.justifyContent = Justify.SpaceBetween;
 
             fxLayer = new VisualElement { pickingMode = PickingMode.Ignore };
-            fxLayer.style.position = Position.Absolute;
-            fxLayer.style.left = 0; fxLayer.style.top = 0; fxLayer.style.right = 0; fxLayer.style.bottom = 0;
+            Stretch(fxLayer);
 
-            // ---------- top bar ----------
+            // ---------- top bar: coins | home, settings ----------
             var top = new VisualElement { pickingMode = PickingMode.Ignore };
             top.style.flexDirection = FlexDirection.Row;
             top.style.justifyContent = Justify.SpaceBetween;
@@ -62,10 +57,18 @@ namespace PotMerge
             coinLabel = MakeLabel("0", 46, Ink);
             coinPill.Add(coinLabel);
 
+            var buttons = new VisualElement { pickingMode = PickingMode.Ignore };
+            buttons.style.flexDirection = FlexDirection.Row;
+            var home = IconButton(IconShape.Home, 110, () => HomeClicked?.Invoke());
+            home.style.marginRight = 24;
+            buttons.Add(home);
+            buttons.Add(IconButton(IconShape.Gear, 110, () => SettingsClicked?.Invoke()));
+
             top.Add(coinPill);
+            top.Add(buttons);
 
             // ---------- toast ----------
-            toast = MakeLabel("", 56, Color.white);
+            toast = MakeLabel("", 52, Color.white);
             toast.style.position = Position.Absolute;
             toast.style.top = 260; toast.style.left = 0; toast.style.right = 0;
             toast.style.unityTextAlign = TextAnchor.MiddleCenter;
@@ -78,16 +81,7 @@ namespace PotMerge
             bottom.style.alignItems = Align.Center;
             bottom.style.paddingBottom = 120;
 
-            spawnButton = new Button(() => SpawnClicked?.Invoke());
-            spawnButton.text = "";
-            spawnButton.style.width = 440; spawnButton.style.height = 140;
-            Round(spawnButton, 44);
-            spawnButton.style.backgroundColor = Green;
-            Border(spawnButton, 0, Color.clear);
-            spawnButton.style.borderBottomWidth = 12;
-            spawnButton.style.borderBottomColor = GreenDark;
-            spawnButton.style.alignItems = Align.Center;
-            spawnButton.style.justifyContent = Justify.Center;
+            spawnButton = BigButton("", 440, 140, 50, Green, GreenDark, () => SpawnClicked?.Invoke());
             spawnTitle = MakeLabel("ADD ITEM", 50, Color.white);
             spawnCost = MakeLabel("1 coin", 30, new Color(1f, 0.95f, 0.7f));
             spawnButton.Add(spawnTitle);
@@ -96,38 +90,30 @@ namespace PotMerge
 
             // ---------- game over overlay ----------
             gameOverPanel = new VisualElement();
-            gameOverPanel.style.position = Position.Absolute;
-            gameOverPanel.style.left = 0; gameOverPanel.style.top = 0; gameOverPanel.style.right = 0; gameOverPanel.style.bottom = 0;
-            gameOverPanel.style.backgroundColor = new Color(0.1f, 0.07f, 0.05f, 0.6f);
+            Stretch(gameOverPanel);
+            gameOverPanel.style.backgroundColor = Dim;
             gameOverPanel.style.alignItems = Align.Center;
             gameOverPanel.style.justifyContent = Justify.Center;
             gameOverPanel.style.display = DisplayStyle.None;
-            var card = new VisualElement();
-            card.style.backgroundColor = Cream;
-            Round(card, 60);
+            var card = Card(60);
             card.style.paddingTop = 70; card.style.paddingBottom = 70; card.style.paddingLeft = 80; card.style.paddingRight = 80;
             card.style.alignItems = Align.Center;
             card.style.width = 860;
-            var title = MakeLabel("NO MORE MOVES", 76, Ink);
+            var title = MakeLabel("NO MORE MOVES", 72, Ink);
             title.style.marginBottom = 30;
-            gameOverInfo = MakeLabel("", 44, Ink);
+            gameOverInfo = MakeLabel("", 42, Ink);
             gameOverInfo.style.unityTextAlign = TextAnchor.MiddleCenter;
             gameOverInfo.style.marginBottom = 50;
             gameOverInfo.style.whiteSpace = WhiteSpace.Normal;
-            var restart = new Button(() => RestartClicked?.Invoke());
-            restart.text = "";
-            restart.style.width = 520; restart.style.height = 160;
-            Round(restart, 50);
-            restart.style.backgroundColor = Green;
-            Border(restart, 0, Color.clear);
-            restart.style.borderBottomWidth = 14;
-            restart.style.borderBottomColor = GreenDark;
-            restart.style.justifyContent = Justify.Center;
-            restart.style.alignItems = Align.Center;
-            restart.Add(MakeLabel("RESTART", 64, Color.white));
+            var row = new VisualElement();
+            row.style.flexDirection = FlexDirection.Row;
+            var homeBtn = BigButton("HOME", 300, 140, 50, Pink, PinkDark, () => HomeClicked?.Invoke());
+            homeBtn.style.marginRight = 30;
+            row.Add(homeBtn);
+            row.Add(BigButton("RESTART", 360, 140, 50, Green, GreenDark, () => RestartClicked?.Invoke()));
             card.Add(title);
             card.Add(gameOverInfo);
-            card.Add(restart);
+            card.Add(row);
             gameOverPanel.Add(card);
 
             root.Add(top);
@@ -138,6 +124,11 @@ namespace PotMerge
         }
 
         // ---------------- public API ----------------
+        public void SetVisible(bool visible)
+        {
+            if (root != null) root.style.display = visible ? DisplayStyle.Flex : DisplayStyle.None;
+        }
+
         public void SetCoins(long coins, bool punch = false)
         {
             coinLabel.text = Format(coins);
@@ -146,8 +137,7 @@ namespace PotMerge
 
         public void SetSpawn(string title, string subtitle, bool enabled)
         {
-            spawnButton.style.backgroundColor = enabled ? Green : Disabled;
-            spawnButton.style.borderBottomColor = enabled ? GreenDark : new Color(0.45f, 0.45f, 0.43f);
+            SetButtonColors(spawnButton, enabled ? Green : Disabled, enabled ? GreenDark : DisabledDark);
             spawnTitle.text = title;
             spawnCost.text = subtitle;
         }
@@ -175,13 +165,14 @@ namespace PotMerge
             floaters.Add(new Floater { label = l, world = world, life = 1.1f });
         }
 
+        /// <summary>True if the pointer is over any UI element of the shared panel (HUD or menus).</summary>
         public bool IsPointerOverUI(Vector2 screenPos)
         {
             var panel = root?.panel;
             if (panel == null) return false;
             var p = RuntimePanelUtils.ScreenToPanel(panel, new Vector2(screenPos.x, Screen.height - screenPos.y));
             var picked = panel.Pick(p);
-            return picked != null && picked != root;
+            return picked != null && picked != root && picked != panel.visualTree;
         }
 
         // ---------------- animation ----------------
@@ -229,87 +220,6 @@ namespace PotMerge
             }
         }
 
-        // ---------------- helpers ----------------
-        static Label MakeLabel(string text, float size, Color color)
-        {
-            var l = new Label(text) { pickingMode = PickingMode.Ignore };
-            l.style.fontSize = size;
-            l.style.color = color;
-            l.style.unityFontStyleAndWeight = FontStyle.Bold;
-            l.style.marginLeft = 0; l.style.marginRight = 0; l.style.paddingLeft = 0; l.style.paddingRight = 0;
-            return l;
-        }
-
-        /// <summary>Gold coin: dark rim, bright face, inner ring and a small highlight.</summary>
-        public static VisualElement CoinIcon(float size)
-        {
-            var rim = new VisualElement { pickingMode = PickingMode.Ignore };
-            rim.style.width = size; rim.style.height = size;
-            rim.style.flexShrink = 0;
-            Round(rim, size * 0.5f);
-            rim.style.backgroundColor = new Color(0.86f, 0.55f, 0.08f);
-            rim.style.marginRight = 16;
-            rim.style.alignItems = Align.Center;
-            rim.style.justifyContent = Justify.Center;
-
-            float f = size * 0.8f;
-            var face = new VisualElement { pickingMode = PickingMode.Ignore };
-            face.style.width = f; face.style.height = f;
-            Round(face, f * 0.5f);
-            face.style.backgroundColor = Gold;
-            face.style.alignItems = Align.Center;
-            face.style.justifyContent = Justify.Center;
-            rim.Add(face);
-
-            float r = size * 0.5f;
-            var ring = new VisualElement { pickingMode = PickingMode.Ignore };
-            ring.style.width = r; ring.style.height = r;
-            Round(ring, r * 0.5f);
-            Border(ring, Mathf.Max(2f, size * 0.07f), new Color(0.93f, 0.66f, 0.12f));
-            face.Add(ring);
-
-            float h = size * 0.16f;
-            var shine = new VisualElement { pickingMode = PickingMode.Ignore };
-            shine.style.position = Position.Absolute;
-            shine.style.width = h; shine.style.height = h;
-            shine.style.left = f * 0.18f; shine.style.top = f * 0.16f;
-            Round(shine, h * 0.5f);
-            shine.style.backgroundColor = new Color(1f, 0.97f, 0.8f);
-            face.Add(shine);
-            return rim;
-        }
-
-        static VisualElement Pill()
-        {
-            var v = new VisualElement { pickingMode = PickingMode.Ignore };
-            v.style.flexDirection = FlexDirection.Row;
-            v.style.alignItems = Align.Center;
-            v.style.backgroundColor = Cream;
-            v.style.paddingLeft = 24; v.style.paddingRight = 34; v.style.paddingTop = 14; v.style.paddingBottom = 14;
-            Round(v, 50);
-            v.style.borderBottomWidth = 8;
-            v.style.borderBottomColor = new Color(0.82f, 0.76f, 0.66f);
-            return v;
-        }
-
-        static void Round(VisualElement v, float r)
-        {
-            v.style.borderTopLeftRadius = r; v.style.borderTopRightRadius = r;
-            v.style.borderBottomLeftRadius = r; v.style.borderBottomRightRadius = r;
-        }
-
-        static void Border(VisualElement v, float w, Color c)
-        {
-            v.style.borderTopWidth = w; v.style.borderBottomWidth = w; v.style.borderLeftWidth = w; v.style.borderRightWidth = w;
-            v.style.borderTopColor = c; v.style.borderBottomColor = c; v.style.borderLeftColor = c; v.style.borderRightColor = c;
-        }
-
-        public static string Format(long v)
-        {
-            if (v >= 1_000_000_000) return (v / 1_000_000_000f).ToString("0.##") + "B";
-            if (v >= 1_000_000) return (v / 1_000_000f).ToString("0.##") + "M";
-            if (v >= 10_000) return (v / 1_000f).ToString("0.#") + "K";
-            return v.ToString();
-        }
+        public static string Format(long v) => UIKit.Format(v);
     }
 }

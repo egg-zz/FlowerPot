@@ -20,12 +20,13 @@ Unity 프로젝트 + 3ds Max 모델링을 MCP로 연결해서 만드는 머지 �
 - 머지할 게 없고 (코인 없음 또는 보드 가득) → 게임 오버
 - 6초간 입력이 없으면 머지 가능한 두 아이템이 흔들리는 힌트
 
-## 화면 구성 (진행 중)
-1. **타이틀**: 꽃집 배경, "FLOWER / POT" 글씨가 둥실둥실 떠다님, 탭하면 홈으로
-2. **홈**: 상단 코인 / 체인별 최고 단계 / 설정 버튼 / 도감 버튼, 좌측 일일 퀘스트, 화면 3/4 지점에 GAME START 버튼
-3. **게임**: 보드, 코인, 홈 버튼, ADD ITEM 버튼
-- 설정: 사운드 on/off, 진행 초기화 / 도감: 해금한 아이템 모아보기
-- 일일 퀘스트: 날짜 기준으로 하루 3개, 완료하면 코인 보상
+## 화면 구성 (구현됨)
+1. **타이틀**: 꽃집 배경(Flower 체인 모델로 만든 디오라마), "FLOWER / POT" 글씨가 둥실둥실 떠다님, 탭하면 홈으로
+2. **홈**: 상단 코인 / 도감·설정 버튼, 체인별 최고 단계 카드 4개, 좌측 일일 퀘스트, 우측 SHOP 버튼, 화면 3/4 지점에 GAME START 버튼
+3. **게임**: 보드, 코인, 홈·설정 버튼, ADD ITEM 버튼 (게임 오버 카드에 HOME / RESTART)
+- 설정: 사운드 on/off, 진행 초기화(확인 팝업) / 도감: 체인 탭별 11칸, 미해금은 흐린 실루엣 + ???
+- 일일 퀘스트: 날짜 기준으로 하루 3개, 완료하면 CLAIM으로 코인 보상
+- **상점: 아직 "coming soon"** — 꽃집 사장(동물 캐릭터)과 코스튬을 코인으로 사는 기능 예정 (캐릭터 목록 제안 → Max 모델링 → OK 후 Unity)
 
 ## 머지 체인 (단계 이름)
 | 단계 | Flower | Cafe | Bakery | Ice Cream |
@@ -53,7 +54,9 @@ Unity 프로젝트 + 3ds Max 모델링을 MCP로 연결해서 만드는 머지 �
   - `PlayerData.cs` — 코인 지갑, 체인별 최고 단계, 사운드 설정, 일일 퀘스트 (PlayerPrefs JSON)
   - `ModelUtil.cs` — 모델 스폰(180도 회전, 바닥 맞춤, 크기 정규화)
   - `SoundFx.cs` — 절차적으로 만든 효과음
-  - `GameUI.cs` / 게임 흐름 스크립트 — 작성 중
+  - `MergeHUD.cs` — 게임 화면 HUD / `MenuUI.cs` — 타이틀·홈·팝업 / `UIKit.cs` — 공용 UI 스타일·벡터 아이콘
+  - `GameFlow.cs` — 타이틀→홈→게임 전환, 카메라 넘기기 / `ShopBackdrop.cs` — 타이틀·홈 뒤 꽃집 디오라마
+- `Assets/PotMerge/Data/ChainDatabase.asset` — 4체인 데이터 / `Assets/PotMerge/Icons/` — 아이템 아이콘 44개(에디터에서 렌더해 구움)
 - `Assets/PotMerge/UI/PotMergePanelSettings.asset` — UI Toolkit 패널 설정 (참조 해상도 1080x1920)
 
 ## 3ds Max 원본 (바탕화면, 레포 밖)

@@ -40,7 +40,18 @@ MonoBehaviour:
     - Bouquet
     - Flower Stall
     - Flower Shop
-    icons: []
+    icons:
+    - {fileID: 2800000, guid: c6d08586795ce40498cf48238a7d3630, type: 3}
+    - {fileID: 2800000, guid: 8000d08f63cd8774581ab6d80fccc64d, type: 3}
+    - {fileID: 2800000, guid: 67583a6bf1f09b049a6654e8d0be5d8c, type: 3}
+    - {fileID: 2800000, guid: 2a8bc56a2e05b84408b6a200a2996940, type: 3}
+    - {fileID: 2800000, guid: e59e2e9b358551f448d7d58e6cebcac1, type: 3}
+    - {fileID: 2800000, guid: eb54ba8fe53c1714f8efb34e64c79156, type: 3}
+    - {fileID: 2800000, guid: 5e6cfdd893680bd408b9d1621a8e5cc8, type: 3}
+    - {fileID: 2800000, guid: eaad5cfcc18c2dc45b671c7a5c84b347, type: 3}
+    - {fileID: 2800000, guid: 91a2da0b5cebc4e4da879028c4cec08c, type: 3}
+    - {fileID: 2800000, guid: 3af94509f88a20c42a09a4c0b04e3816, type: 3}
+    - {fileID: 2800000, guid: 720b310f50ec7be469ac70dee12363c5, type: 3}
   - id: Cafe
     displayName: Cafe
     color: {r: 0.62, g: 0.42, b: 0.28, a: 1}
@@ -68,7 +79,18 @@ MonoBehaviour:
     - Dessert Tower
     - Coffee Cart
     - Cafe
-    icons: []
+    icons:
+    - {fileID: 2800000, guid: 25270102b8fad8d4bb1aff157d2095d4, type: 3}
+    - {fileID: 2800000, guid: 2bd396e4b5b3fe54dadc2f311af715f5, type: 3}
+    - {fileID: 2800000, guid: 71e63ca0b1f124342a674cd980e5fad3, type: 3}
+    - {fileID: 2800000, guid: c511d2123443cdb4ca6215d07a60082d, type: 3}
+    - {fileID: 2800000, guid: e0a8318e753df4c4580d0d824cc26214, type: 3}
+    - {fileID: 2800000, guid: 672db4763af14c64a954766d6b7769cf, type: 3}
+    - {fileID: 2800000, guid: 084b826c04ac8ea4baff117eef39ace9, type: 3}
+    - {fileID: 2800000, guid: fd91ae88acade0a4da82d1aebb2dd671, type: 3}
+    - {fileID: 2800000, guid: 4e17a29373eadec4fb8733b801e6026c, type: 3}
+    - {fileID: 2800000, guid: 098f5a61b915e3145b19b125a1ebbadc, type: 3}
+    - {fileID: 2800000, guid: 33b70fa38e707334c8e1860b90441180, type: 3}
   - id: Bakery
     displayName: Bakery
     color: {r: 0.95, g: 0.7, b: 0.3, a: 1}
@@ -96,7 +118,18 @@ MonoBehaviour:
     - Wedding Cake
     - Bread Cart
     - Bakery
-    icons: []
+    icons:
+    - {fileID: 2800000, guid: aa274b97aa603114680f7a19938242b6, type: 3}
+    - {fileID: 2800000, guid: 9b22c55f5f8772541a65cd979312b89c, type: 3}
+    - {fileID: 2800000, guid: 8c6a96994b2f6ec428db69d3a2dc23c0, type: 3}
+    - {fileID: 2800000, guid: 3c23c8cf9d6149a4a8bac204c64a69e0, type: 3}
+    - {fileID: 2800000, guid: d79391eb876bb1d42aa4c85370628f0b, type: 3}
+    - {fileID: 2800000, guid: 3b3b4ab982bb1ec40ba3852f1ef32071, type: 3}
+    - {fileID: 2800000, guid: e1c9e4ab1e3596545b0394eb61d785c8, type: 3}
+    - {fileID: 2800000, guid: e608e73a38d67724197a62eb1f739840, type: 3}
+    - {fileID: 2800000, guid: 32314da36da055043837119a99a3b7a3, type: 3}
+    - {fileID: 2800000, guid: bcbf2f8a02ba3154aafa1b89014ee808, type: 3}
+    - {fileID: 2800000, guid: d2fe25c941904164f9e6221926917a14, type: 3}
   - id: IceCream
     displayName: Ice Cream
     color: {r: 0.98, g: 0.55, b: 0.72, a: 1}
@@ -124,7 +157,18 @@ MonoBehaviour:
     - Ice Cream Cake
     - Ice Cream Truck
     - Ice Cream Shop
-    icons: []
+    icons:
+    - {fileID: 2800000, guid: 250745b7d67cdb74fbe9ad19b9cecdc6, type: 3}
+    - {fileID: 2800000, guid: 71972529dad3fc4459d38eb6a7805007, type: 3}
+    - {fileID: 2800000, guid: 1a8280512a81ad340ad1ed8590309acb, type: 3}
+    - {fileID: 2800000, guid: 61df859fe9c3bdf45834d04316a9400d, type: 3}
+    - {fileID: 2800000, guid: 41b460a235e35434c953c60f91c42d82, type: 3}
+    - {fileID: 2800000, guid: c9ae9d3a34086b24589640a9e1925ff0, type: 3}
+    - {fileID: 2800000, guid: fe718f243e4220d4ab659c352540d6fc, type: 3}
+    - {fileID: 2800000, guid: e1443b23897ee5543986cf6191d6c6fa, type: 3}
+    - {fileID: 2800000, guid: ca152cc9a7dafd7449abc167b3ed0cd3, type: 3}
+    - {fileID: 2800000, guid: 4bede64b120f8b240888bbc56c807847, type: 3}
+    - {fileID: 2800000, guid: b445287e60eb89244bd4da794eb8bb52, type: 3}
   levelSize:
   - 0.62
   - 0.68

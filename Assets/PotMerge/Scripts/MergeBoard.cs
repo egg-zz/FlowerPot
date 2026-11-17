@@ -114,11 +114,42 @@ namespace PotMerge
             if (hud != null) hud.SetCoins(Coins);
         }
 
+        bool active = true;
+
+        /// <summary>False while the title/home screen is shown: no camera control, input or hints.</summary>
+        public bool Active
+        {
+            get => active;
+            set
+            {
+                active = value;
+                if (value) { lastAspect = -1f; idleTimer = 0f; FitCamera(); }
+                else CancelDrag();
+            }
+        }
+
+        public bool IsGameOver => gameOver;
+
+        /// <summary>True while a popup (settings, ...) covers the game.</summary>
+        public bool InputBlocked { get; set; }
+
+        void CancelDrag()
+        {
+            if (dragging == null) return;
+            var item = dragging;
+            dragging = null;
+            if (highlight != null) highlight.gameObject.SetActive(false);
+            item.SetLifted(false);
+            item.MoveTo(CellToWorld(item.Cell));
+        }
+
         void Update()
         {
             if (grid == null) return; // e.g. after a script reload in play mode
+            if (!active) return;
             FitCamera();
-            if (!gameOver) HandleInput();
+            if (InputBlocked) { CancelDrag(); idleTimer = 0f; }
+            else if (!gameOver) HandleInput();
             TickHint();
 
             saveTimer += Time.deltaTime;
@@ -651,6 +682,13 @@ namespace PotMerge
                 count++;
             }
             return count > 0;
+        }
+
+        /// <summary>Settings > reset progress: wipe the board save and start a fresh board.</summary>
+        public void ResetBoard()
+        {
+            PlayerPrefs.DeleteKey(SaveKey);
+            if (grid != null) Restart();
         }
 
         [ContextMenu("Reset Board Save")]
