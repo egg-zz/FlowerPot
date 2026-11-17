@@ -8,6 +8,9 @@ Unity 프로젝트 + 3ds Max 모델링을 MCP로 연결해서 만드는 머지 �
 - MCP 서버: `unityMCP`(MCP for Unity), `3dsmax-mcp` — 로컬 경로가 들어 있는 `.mcp.json`은 git에서 제외
 - GitHub: `egg-zz/FlowerPot` — 커밋 작성자는 `egg-zz <203041175+egg-zz@users.noreply.github.com>`, **커밋에 Claude 이름이나 Co-authored-by를 넣지 않는다**. 푸시는 GitHub Desktop으로 한다(CLI에는 GitHub 인증이 없음).
 
+## 앞으로 할 일
+- 확장 기획(레벨 모드, 햄스터 주문, 박스·거미줄 기믹, 콤보, 메타 요소)과 작업 순서는 **`docs/ROADMAP.md`** 에 정리되어 있다. 다음 작업은 거기서 고른다.
+
 ## 게임 규칙 (사용자가 정한 것)
 - 보드 **7 x 7**
 - 머지 체인 **4종 x 11단계**: Flower, Cafe, Bakery, Ice Cream
