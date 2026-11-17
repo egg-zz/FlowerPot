@@ -579,6 +579,8 @@ namespace PotMerge
             return cell;
         }
 
+        int shopTab; // 0 = costumes, 1 = coins
+
         void OpenShop()
         {
             var popup = Popup("SHOP", 940, out var body, ClosePopups);
@@ -592,7 +594,26 @@ namespace PotMerge
             var j = CurrencyPill(true, out var jl); jl.text = Format(PlayerData.Jewels); j.style.marginLeft = 16; wallet.Add(j);
             body.Add(wallet);
 
-            AddCostumeSection(body);
+            // tabs: COSTUMES | COINS
+            var tabs = new VisualElement { pickingMode = PickingMode.Ignore };
+            tabs.style.flexDirection = FlexDirection.Row;
+            tabs.style.justifyContent = Justify.Center;
+            tabs.style.marginBottom = 30;
+            string[] names = { "COSTUMES", "COINS" };
+            for (int t = 0; t < names.Length; t++)
+            {
+                int tab = t;
+                bool sel = shopTab == t;
+                var b = BigButton(names[t], 380, 110, 40,
+                    sel ? PinkDark : new Color(0.90f, 0.86f, 0.78f), sel ? Color.Lerp(PinkDark, Color.black, 0.3f) : CreamShadow,
+                    () => { shopTab = tab; OpenShop(); });
+                if (!sel) ((Label)b[0]).style.color = InkSoft;
+                if (t == 0) b.style.marginRight = 24;
+                tabs.Add(b);
+            }
+            body.Add(tabs);
+
+            if (shopTab == 0) { AddCostumeSection(body); OpenPopup(popup); return; }
 
             // coins for jewels
             body.Add(SectionTitle("COINS"));
@@ -631,7 +652,6 @@ namespace PotMerge
         void AddCostumeSection(VisualElement body)
         {
             if (costumes == null || costumes.costumes == null || costumes.costumes.Length == 0) return;
-            body.Add(SectionTitle("COSTUMES"));
             var row = ShopRow();
             row.style.flexWrap = Wrap.Wrap;
             row.style.justifyContent = Justify.FlexStart;
@@ -643,6 +663,7 @@ namespace PotMerge
                 if (c.icon != null) icon.style.backgroundImage = new StyleBackground(c.icon);
                 var card = ShopCard(icon, c.displayName);
                 card.style.marginRight = (i % 3 == 2) ? 0 : 20;
+                card.style.marginBottom = 20;
                 ((Label)card[1]).style.fontSize = 28;
                 bool owned = PlayerData.OwnsCostume(c.id);
                 bool wearing = PlayerData.Equipped(c.slot) == c.id;

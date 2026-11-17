@@ -68,6 +68,15 @@ namespace PotMerge
             }
         }
 
+        float cheerT = -1f, cheerPower = 1f;
+
+        /// <summary>Happy jump with a spin. Bigger merges (higher levels) give a bigger jump.</summary>
+        public void Cheer(int level = 1)
+        {
+            cheerT = 0f;
+            cheerPower = Mathf.Lerp(0.8f, 1.6f, Mathf.Clamp01((level - 2) / 8f));
+        }
+
         void Update()
         {
             if (holder == null) return;
@@ -76,9 +85,24 @@ namespace PotMerge
             // gentle squash-and-stretch bounce
             float t = Time.time;
             float b = Mathf.Abs(Mathf.Sin(t * 2.4f));
-            holder.localScale = new Vector3(1f + 0.03f * (1f - b), 1f + 0.045f * b - 0.02f, 1f + 0.03f * (1f - b));
-            holder.position = position + Vector3.up * (0.08f * b);
-            holder.rotation = Quaternion.Euler(0f, yaw + Mathf.Sin(t * 0.8f) * 6f, Mathf.Sin(t * 1.2f) * 2f);
+            Vector3 scale = new Vector3(1f + 0.03f * (1f - b), 1f + 0.045f * b - 0.02f, 1f + 0.03f * (1f - b));
+            float lift = 0.08f * b;
+            float spin = 0f;
+
+            if (cheerT >= 0f)
+            {
+                cheerT += Time.deltaTime / 0.7f;
+                float k = Mathf.Clamp01(cheerT);
+                lift += Mathf.Sin(k * Mathf.PI) * 0.9f * cheerPower;      // jump
+                spin = Mathf.SmoothStep(0f, 360f, k);                       // full turn in the air
+                float squash = k < 0.12f ? Mathf.Sin(k / 0.12f * Mathf.PI) : (k > 0.88f ? Mathf.Sin((k - 0.88f) / 0.12f * Mathf.PI) : 0f);
+                scale = Vector3.Scale(scale, new Vector3(1f + 0.18f * squash, 1f - 0.2f * squash, 1f + 0.18f * squash));
+                if (cheerT >= 1f) cheerT = -1f;
+            }
+
+            holder.localScale = scale;
+            holder.position = position + Vector3.up * lift;
+            holder.rotation = Quaternion.Euler(0f, yaw + spin + Mathf.Sin(t * 0.8f) * 6f, Mathf.Sin(t * 1.2f) * 2f);
 
             // blink every few seconds
             blinkTimer -= Time.deltaTime;

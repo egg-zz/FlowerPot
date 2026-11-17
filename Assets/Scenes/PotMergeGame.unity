@@ -119,6 +119,55 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &379528536
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 379528538}
+  - component: {fileID: 379528537}
+  m_Layer: 0
+  m_Name: OwnerPortrait
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &379528537
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 379528536}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a33252fd767a58b408ebd1fc5d6c9d71, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PotMerge.OwnerPortrait
+  costumes: {fileID: 11400000, guid: 23b75c19e06b7f24ea0c646797733921, type: 2}
+  board: {fileID: 745008899}
+  hud: {fileID: 2141879631}
+  stagePosition: {x: 0, y: -300, z: 0}
+  textureSize: 512
+--- !u!4 &379528538
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 379528536}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &464333932
 GameObject:
   m_ObjectHideFlags: 0
@@ -649,3 +698,4 @@ SceneRoots:
   - {fileID: 464333935}
   - {fileID: 972003700}
   - {fileID: 783928470}
+  - {fileID: 379528538}

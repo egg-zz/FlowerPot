@@ -45,7 +45,8 @@ Unity 프로젝트 + 3ds Max 모델링을 MCP로 연결해서 만드는 머지 �
 - 볼 빵빵한 크림색 2등신 햄스터. 홈 화면 꽃집 옆에 서서 통통 튀고 눈을 깜빡인다 (`ShopOwner.cs`)
 - 모델: `Assets/Models/Hamster/Hamster.fbx` — 몸·머리·볼이 **한 덩어리 매끈한 메시**, 흰 얼굴/분홍 볼/흰 배는 **정점 색**(셰이더 `PotMerge/VertexColorLit`, 재질 `HM_SkinVC`)
 - 코스튬 FBX는 햄스터 원점 기준으로 내보내서 그대로 겹쳐 붙인다: `Costume_StrawHat`(코인 30), `Costume_FlowerApron`(코인 40), `Costume_FlowerCrown`(쥬얼리 10) → `Assets/PotMerge/Data/CostumeDatabase.asset`
-- 슬롯: Hat / Face / Neck / Body / Hand — 같은 슬롯은 하나만 착용. 상점 COSTUMES에서 구매(바로 착용)·WEAR/WEARING 토글
+- 슬롯: Hat / Face / Neck / Body / Hand — 같은 슬롯은 하나만 착용. 상점 COSTUMES 탭에서 구매(바로 착용)·WEAR/WEARING 토글 (상점은 COSTUMES / COINS 두 탭)
+- **게임 화면 상단 중앙**에도 햄스터가 코스튬을 입고 서 있고, **머지할 때마다 점프+한 바퀴** (높은 단계일수록 크게). 보드 아래 숨은 무대(y=-300)를 작은 카메라로 렌더해 HUD에 띄운다 (`OwnerPortrait.cs`)
 - Max 원본: `D:\KSR_26.11.17_RoundShop_Title.max`의 `Hamster_Base` / `Hamster_CoinLook` / `Hamster_JewelLook`
 - 코스튬 후보(제안함, 미제작): 모자 — 요리사 모자, 바리스타 베레모, 새싹 머리핀, 꿀벌 더듬이, 딸기 모자, 아이스크림 콘 모자, 왕관 / 얼굴 — 동그란 안경, 하트 볼스티커, 하트 선글라스 / 목 — 리본 넥타이, 체크 스카프, 꽃 레이 / 몸 — 바리스타 앞치마, 멜빵 바지, 벚꽃 기모노, 공주 드레스, 노란 비옷 / 손 — 물뿌리개, 꽃다발, 아이스크림 콘, 별 마법봉
 

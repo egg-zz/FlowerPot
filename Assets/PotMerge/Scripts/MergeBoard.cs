@@ -54,6 +54,9 @@ namespace PotMerge
 
         const string SaveKey = "PotMerge.Board.v3";
 
+        /// <summary>Raised after every merge with (chain, new level).</summary>
+        public event Action<int, int> Merged;
+
         PotItem[,] grid;
         int bestChain;
         int bestLevel = 1;
@@ -440,6 +443,7 @@ namespace PotMerge
             long reward = fromLevel; // +1 for level-1 merges, +2 for level-2, ...
             PlayerData.AddCoins(reward);
             PlayerData.OnMerge(chain, newLevel);
+            Merged?.Invoke(chain, newLevel);
             int spawnMaxBefore = CurrentSpawnMax;
             hud?.FloatText(pos + Vector3.up * 1.4f, "+" + MergeHUD.Format(reward), new Color(1f, 0.85f, 0.25f), 56f);
 

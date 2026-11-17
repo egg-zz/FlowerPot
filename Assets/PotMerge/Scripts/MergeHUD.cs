@@ -171,6 +171,16 @@ namespace PotMerge
             oc.Add(ocBottom);
             outOfCoinsPanel.Add(oc);
 
+            // ---------- shop owner at the top center ----------
+            ownerPortrait = new VisualElement { pickingMode = PickingMode.Ignore };
+            ownerPortrait.style.position = Position.Absolute;
+            ownerPortrait.style.width = 440; ownerPortrait.style.height = 440;
+            ownerPortrait.style.left = Length.Percent(50);
+            ownerPortrait.style.top = 150;
+            ownerPortrait.style.translate = new Translate(Length.Percent(-50), 0);
+            ownerPortrait.style.display = DisplayStyle.None;
+
+            root.Add(ownerPortrait);
             root.Add(top);
             root.Add(bottom);
             root.Add(fxLayer);
@@ -183,6 +193,16 @@ namespace PotMerge
         public void SetVisible(bool visible)
         {
             if (root != null) root.style.display = visible ? DisplayStyle.Flex : DisplayStyle.None;
+        }
+
+        VisualElement ownerPortrait;
+
+        /// <summary>Shows the rendered hamster owner at the top center.</summary>
+        public void SetOwnerPortrait(Texture texture)
+        {
+            if (ownerPortrait == null) return;
+            ownerPortrait.style.backgroundImage = texture != null ? Background.FromRenderTexture(texture as RenderTexture) : new StyleBackground(StyleKeyword.None);
+            ownerPortrait.style.display = texture != null ? DisplayStyle.Flex : DisplayStyle.None;
         }
 
         public void SetCoins(long coins, bool punch = false)
