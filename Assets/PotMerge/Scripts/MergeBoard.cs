@@ -549,7 +549,6 @@ namespace PotMerge
         {
             if (hud == null) return;
             hud.SetCoins(Coins, punch);
-            hud.SetBest(bestLevel, MaxLevel, database.LevelName(bestChain, bestLevel));
 
             if (busyMerges > 0) return;
             bool canMerge = HasAnyMerge(out _, out _);

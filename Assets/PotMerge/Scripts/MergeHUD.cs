@@ -22,7 +22,6 @@ namespace PotMerge
         VisualElement root;
         VisualElement fxLayer;
         Label coinLabel;
-        Label bestLabel;
         Button spawnButton;
         Label spawnTitle;
         Label spawnCost;
@@ -58,22 +57,12 @@ namespace PotMerge
             top.style.paddingTop = 70; top.style.paddingLeft = 40; top.style.paddingRight = 40;
 
             var coinPill = Pill();
-            var coinIcon = new VisualElement { pickingMode = PickingMode.Ignore };
-            coinIcon.style.width = 58; coinIcon.style.height = 58;
-            Round(coinIcon, 29);
-            coinIcon.style.backgroundColor = Gold;
-            Border(coinIcon, 5, new Color(0.85f, 0.58f, 0.08f));
-            coinIcon.style.marginRight = 18;
-            coinLabel = MakeLabel("0", 54, Ink);
-            coinPill.Add(coinIcon);
+            coinPill.style.minWidth = 220;
+            coinPill.Add(CoinIcon(52));
+            coinLabel = MakeLabel("0", 46, Ink);
             coinPill.Add(coinLabel);
 
-            var bestPill = Pill();
-            bestLabel = MakeLabel("Best: -", 38, Ink);
-            bestPill.Add(bestLabel);
-
             top.Add(coinPill);
-            top.Add(bestPill);
 
             // ---------- toast ----------
             toast = MakeLabel("", 56, Color.white);
@@ -87,20 +76,20 @@ namespace PotMerge
             // ---------- bottom spawn button ----------
             var bottom = new VisualElement { pickingMode = PickingMode.Ignore };
             bottom.style.alignItems = Align.Center;
-            bottom.style.paddingBottom = 110;
+            bottom.style.paddingBottom = 120;
 
             spawnButton = new Button(() => SpawnClicked?.Invoke());
             spawnButton.text = "";
-            spawnButton.style.width = 620; spawnButton.style.height = 190;
-            Round(spawnButton, 60);
+            spawnButton.style.width = 440; spawnButton.style.height = 140;
+            Round(spawnButton, 44);
             spawnButton.style.backgroundColor = Green;
             Border(spawnButton, 0, Color.clear);
-            spawnButton.style.borderBottomWidth = 16;
+            spawnButton.style.borderBottomWidth = 12;
             spawnButton.style.borderBottomColor = GreenDark;
             spawnButton.style.alignItems = Align.Center;
             spawnButton.style.justifyContent = Justify.Center;
-            spawnTitle = MakeLabel("ADD ITEM", 64, Color.white);
-            spawnCost = MakeLabel("1 coin", 40, new Color(1f, 0.95f, 0.7f));
+            spawnTitle = MakeLabel("ADD ITEM", 50, Color.white);
+            spawnCost = MakeLabel("1 coin", 30, new Color(1f, 0.95f, 0.7f));
             spawnButton.Add(spawnTitle);
             spawnButton.Add(spawnCost);
             bottom.Add(spawnButton);
@@ -153,11 +142,6 @@ namespace PotMerge
         {
             coinLabel.text = Format(coins);
             if (punch) coinPunch = 1f;
-        }
-
-        public void SetBest(int level, int maxLevel, string name)
-        {
-            bestLabel.text = $"Best: {name}  {level}/{maxLevel}";
         }
 
         public void SetSpawn(string title, string subtitle, bool enabled)
@@ -254,6 +238,45 @@ namespace PotMerge
             l.style.unityFontStyleAndWeight = FontStyle.Bold;
             l.style.marginLeft = 0; l.style.marginRight = 0; l.style.paddingLeft = 0; l.style.paddingRight = 0;
             return l;
+        }
+
+        /// <summary>Gold coin: dark rim, bright face, inner ring and a small highlight.</summary>
+        public static VisualElement CoinIcon(float size)
+        {
+            var rim = new VisualElement { pickingMode = PickingMode.Ignore };
+            rim.style.width = size; rim.style.height = size;
+            rim.style.flexShrink = 0;
+            Round(rim, size * 0.5f);
+            rim.style.backgroundColor = new Color(0.86f, 0.55f, 0.08f);
+            rim.style.marginRight = 16;
+            rim.style.alignItems = Align.Center;
+            rim.style.justifyContent = Justify.Center;
+
+            float f = size * 0.8f;
+            var face = new VisualElement { pickingMode = PickingMode.Ignore };
+            face.style.width = f; face.style.height = f;
+            Round(face, f * 0.5f);
+            face.style.backgroundColor = Gold;
+            face.style.alignItems = Align.Center;
+            face.style.justifyContent = Justify.Center;
+            rim.Add(face);
+
+            float r = size * 0.5f;
+            var ring = new VisualElement { pickingMode = PickingMode.Ignore };
+            ring.style.width = r; ring.style.height = r;
+            Round(ring, r * 0.5f);
+            Border(ring, Mathf.Max(2f, size * 0.07f), new Color(0.93f, 0.66f, 0.12f));
+            face.Add(ring);
+
+            float h = size * 0.16f;
+            var shine = new VisualElement { pickingMode = PickingMode.Ignore };
+            shine.style.position = Position.Absolute;
+            shine.style.width = h; shine.style.height = h;
+            shine.style.left = f * 0.18f; shine.style.top = f * 0.16f;
+            Round(shine, h * 0.5f);
+            shine.style.backgroundColor = new Color(1f, 0.97f, 0.8f);
+            face.Add(shine);
+            return rim;
         }
 
         static VisualElement Pill()
