@@ -41,9 +41,13 @@ Unity 프로젝트 + 3ds Max 모델링을 MCP로 연결해서 만드는 머지 �
 - 일일 퀘스트: 날짜 기준으로 하루 3개, 완료하면 CLAIM으로 코인 보상
 - **상점: 아직 "coming soon"** — 꽃집 사장(동물 캐릭터)과 코스튬을 코인으로 사는 기능 예정 (캐릭터 목록 제안 → Max 모델링 → OK 후 Unity)
 
-## 꽃집 사장 (진행 중)
-- **햄스터**로 결정 (볼 빵빵한 크림색, 2등신). 코스튬 붙일 자리: 모자 / 얼굴 / 목 / 몸 / 손
-- 코스튬 예시 — 코인: 밀짚모자, 꽃무늬 앞치마, 동그란 안경, 리본 넥타이, 물뿌리개 / 쥬얼리: 꽃 화관, 딸기 모자, 요리사 모자, 아이스크림 헬멧, 벚꽃 기모노, 왕관
+## 꽃집 사장 햄스터 (구현됨)
+- 볼 빵빵한 크림색 2등신 햄스터. 홈 화면 꽃집 옆에 서서 통통 튀고 눈을 깜빡인다 (`ShopOwner.cs`)
+- 모델: `Assets/Models/Hamster/Hamster.fbx` — 몸·머리·볼이 **한 덩어리 매끈한 메시**, 흰 얼굴/분홍 볼/흰 배는 **정점 색**(셰이더 `PotMerge/VertexColorLit`, 재질 `HM_SkinVC`)
+- 코스튬 FBX는 햄스터 원점 기준으로 내보내서 그대로 겹쳐 붙인다: `Costume_StrawHat`(코인 30), `Costume_FlowerApron`(코인 40), `Costume_FlowerCrown`(쥬얼리 10) → `Assets/PotMerge/Data/CostumeDatabase.asset`
+- 슬롯: Hat / Face / Neck / Body / Hand — 같은 슬롯은 하나만 착용. 상점 COSTUMES에서 구매(바로 착용)·WEAR/WEARING 토글
+- Max 원본: `D:\KSR_26.11.17_RoundShop_Title.max`의 `Hamster_Base` / `Hamster_CoinLook` / `Hamster_JewelLook`
+- 코스튬 후보(제안함, 미제작): 모자 — 요리사 모자, 바리스타 베레모, 새싹 머리핀, 꿀벌 더듬이, 딸기 모자, 아이스크림 콘 모자, 왕관 / 얼굴 — 동그란 안경, 하트 볼스티커, 하트 선글라스 / 목 — 리본 넥타이, 체크 스카프, 꽃 레이 / 몸 — 바리스타 앞치마, 멜빵 바지, 벚꽃 기모노, 공주 드레스, 노란 비옷 / 손 — 물뿌리개, 꽃다발, 아이스크림 콘, 별 마법봉
 
 ## 머지 체인 (단계 이름)
 | 단계 | Flower | Cafe | Bakery | Ice Cream |

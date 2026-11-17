@@ -151,6 +151,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PotMerge.MenuUI
   database: {fileID: 11400000, guid: c0644365ffe7b564ba5201ee08144e46, type: 2}
   board: {fileID: 745008899}
+  costumes: {fileID: 11400000, guid: 23b75c19e06b7f24ea0c646797733921, type: 2}
   titleImage: {fileID: 0}
   titleImageWidth: 900
 --- !u!114 &464333934
@@ -502,6 +503,7 @@ GameObject:
   m_Component:
   - component: {fileID: 972003700}
   - component: {fileID: 972003699}
+  - component: {fileID: 972003701}
   m_Layer: 0
   m_Name: ShopBackdrop
   m_TagString: Untagged
@@ -533,6 +535,8 @@ MonoBehaviour:
   path: {r: 0.98, g: 0.86, b: 0.7, a: 1}
   cameraLocalPos: {x: 0, y: 6, z: -17}
   cameraPitch: 12
+  homeCameraLocalPos: {x: 0, y: 5.8, z: -17}
+  homeCameraPitch: 16.5
   cameraFov: 50
   swayDegrees: 5
 --- !u!4 &972003700
@@ -550,6 +554,22 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &972003701
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 972003698}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c8cc1e3489aa441409d1be5c03fb009f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PotMerge.ShopOwner
+  costumes: {fileID: 11400000, guid: 23b75c19e06b7f24ea0c646797733921, type: 2}
+  position: {x: 82.4, y: 0, z: -3.6}
+  yaw: -10
+  height: 2.6
 --- !u!1 &2141879630
 GameObject:
   m_ObjectHideFlags: 0

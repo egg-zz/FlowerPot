@@ -23,6 +23,9 @@ namespace PotMerge
         [Header("Camera")]
         public Vector3 cameraLocalPos = new Vector3(0f, 6f, -17f);
         public float cameraPitch = 12f;
+        [Tooltip("Home screen framing: tilted a bit more so the shop and owner sit above the GAME START button")]
+        public Vector3 homeCameraLocalPos = new Vector3(0f, 5.8f, -17f);
+        public float homeCameraPitch = 16.5f;
         public float cameraFov = 50f;
         public float swayDegrees = 5f;
 
@@ -59,9 +62,13 @@ namespace PotMerge
             root.gameObject.SetActive(showing);
         }
 
-        /// <summary>Takes over the camera and shows the diorama.</summary>
-        public void Show(Camera camera)
+        float homeBlend, homeTarget;
+
+        /// <summary>Takes over the camera and shows the diorama (title framing, or home framing).</summary>
+        public void Show(Camera camera, bool homeFraming = false)
         {
+            homeTarget = homeFraming ? 1f : 0f;
+            if (!showing) homeBlend = homeTarget;
             Build();
             if (!showing && camera != null)
             {
@@ -102,9 +109,13 @@ namespace PotMerge
         void ApplyCamera(float t)
         {
             if (cam == null) return;
+            homeBlend = Mathf.MoveTowards(homeBlend, homeTarget, Time.deltaTime * 2.5f);
+            float k = Mathf.SmoothStep(0f, 1f, homeBlend);
+            float pitch = Mathf.Lerp(cameraPitch, homeCameraPitch, k);
+            Vector3 local = Vector3.Lerp(cameraLocalPos, homeCameraLocalPos, k);
             float yaw = Mathf.Sin(t * 0.35f) * swayDegrees;
-            var rot = Quaternion.Euler(cameraPitch, yaw, 0f);
-            cam.transform.position = offset + Quaternion.Euler(0f, yaw, 0f) * cameraLocalPos;
+            var rot = Quaternion.Euler(pitch, yaw, 0f);
+            cam.transform.position = offset + Quaternion.Euler(0f, yaw, 0f) * local;
             cam.transform.rotation = rot;
         }
     }

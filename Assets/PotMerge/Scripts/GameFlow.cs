@@ -58,14 +58,14 @@ namespace PotMerge
         public void ShowTitle()
         {
             Current = State.Title;
-            EnterMenu();
+            EnterMenu(false);
             menu?.ShowTitle();
         }
 
         public void ShowHome()
         {
             Current = State.Home;
-            EnterMenu();
+            EnterMenu(true);
             menu?.ShowHome();
         }
 
@@ -82,11 +82,11 @@ namespace PotMerge
             }
         }
 
-        void EnterMenu()
+        void EnterMenu(bool home)
         {
             if (board != null) board.Active = false;
             hud?.SetVisible(false);
-            backdrop?.Show(cam);
+            backdrop?.Show(cam, home);
         }
 
         void OpenSettings() => menu?.OpenSettings();

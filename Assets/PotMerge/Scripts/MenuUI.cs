@@ -15,6 +15,7 @@ namespace PotMerge
     {
         public ChainDatabase database;
         public MergeBoard board;
+        public CostumeDatabase costumes;
         [Tooltip("Illustrated title logo. When empty, the title is built from letters.")]
         public Texture2D titleImage;
         public float titleImageWidth = 900f;
@@ -591,6 +592,8 @@ namespace PotMerge
             var j = CurrencyPill(true, out var jl); jl.text = Format(PlayerData.Jewels); j.style.marginLeft = 16; wallet.Add(j);
             body.Add(wallet);
 
+            AddCostumeSection(body);
+
             // coins for jewels
             body.Add(SectionTitle("COINS"));
             var coinRow = ShopRow();
@@ -621,12 +624,61 @@ namespace PotMerge
                 jewelRow.Add(card);
             }
             body.Add(jewelRow);
-
-            var note = MakeLabel("Costumes for the shop owner are coming soon!", 30, InkSoft);
-            note.style.marginTop = 20;
-            note.style.unityTextAlign = TextAnchor.MiddleCenter;
-            body.Add(note);
             OpenPopup(popup);
+        }
+
+        // costumes for the hamster owner: buy with coins/jewels, then wear or take off
+        void AddCostumeSection(VisualElement body)
+        {
+            if (costumes == null || costumes.costumes == null || costumes.costumes.Length == 0) return;
+            body.Add(SectionTitle("COSTUMES"));
+            var row = ShopRow();
+            row.style.flexWrap = Wrap.Wrap;
+            row.style.justifyContent = Justify.FlexStart;
+            for (int i = 0; i < costumes.costumes.Length; i++)
+            {
+                var c = costumes.costumes[i];
+                var icon = new VisualElement { pickingMode = PickingMode.Ignore };
+                icon.style.width = 110; icon.style.height = 110;
+                if (c.icon != null) icon.style.backgroundImage = new StyleBackground(c.icon);
+                var card = ShopCard(icon, c.displayName);
+                card.style.marginRight = (i % 3 == 2) ? 0 : 20;
+                ((Label)card[1]).style.fontSize = 28;
+                bool owned = PlayerData.OwnsCostume(c.id);
+                bool wearing = PlayerData.Equipped(c.slot) == c.id;
+                Button btn;
+                if (owned)
+                {
+                    btn = BigButton(wearing ? "WEARING" : "WEAR", 230, 96, 32,
+                        wearing ? Green : new Color(0.40f, 0.70f, 0.95f), wearing ? GreenDark : new Color(0.25f, 0.50f, 0.78f),
+                        () => { PlayerData.ToggleEquip(c.id, c.slot); OpenShop(); });
+                }
+                else
+                {
+                    bool jewel = c.currency == Currency.Jewel;
+                    bool afford = jewel ? PlayerData.Jewels >= c.price : PlayerData.Coins >= c.price;
+                    Color face = !afford ? Disabled : jewel ? JewelColor : Gold;
+                    Color edge = !afford ? DisabledDark : Color.Lerp(face, Color.black, 0.3f);
+                    btn = BigButton("", 230, 96, 32, face, edge, () => BuyCostume(c));
+                    var line = new VisualElement { pickingMode = PickingMode.Ignore };
+                    line.style.flexDirection = FlexDirection.Row; line.style.alignItems = Align.Center;
+                    line.Add(jewel ? Icon(IconShape.Gem, 40, Color.white) : CoinIcon(40, 6));
+                    line.Add(MakeLabel(" " + c.price, 36, Color.white));
+                    btn.Add(line);
+                }
+                card.Add(btn);
+                row.Add(card);
+            }
+            body.Add(row);
+        }
+
+        void BuyCostume(CostumeDatabase.Costume c)
+        {
+            if (!PlayerData.BuyCostume(c.id, c.currency, c.price)) { SoundFx.Error(); return; }
+            SoundFx.Unlock();
+            PlayerData.ToggleEquip(c.id, c.slot); // wear it right away
+            RefreshHome();
+            OpenShop();
         }
 
         void BuyCoins(int index)

@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7fafd8c12e8c6c94db1de22dc4f34bca, type: 3}
+  m_Name: CostumeDatabase
+  m_EditorClassIdentifier: Assembly-CSharp::PotMerge.CostumeDatabase
+  hamsterModel: {fileID: 919132149155446097, guid: 224f6a3bce675c143bbbf732b05f8ca2, type: 3}
+  costumes:
+  - id: straw_hat
+    displayName: Straw Hat
+    slot: 0
+    currency: 0
+    price: 30
+    model: {fileID: 919132149155446097, guid: 4a93c12b4d54baa4c9c5522c21fb5eae, type: 3}
+    icon: {fileID: 2800000, guid: 98be75b3f22607d4fba1dbeabdb60295, type: 3}
+  - id: flower_apron
+    displayName: Flower Apron
+    slot: 3
+    currency: 0
+    price: 40
+    model: {fileID: 919132149155446097, guid: b5b87ad3387fef34c8ab8409e7ba079e, type: 3}
+    icon: {fileID: 2800000, guid: 731857310387f984f993d51a16f87edc, type: 3}
+  - id: flower_crown
+    displayName: Flower Crown
+    slot: 0
+    currency: 1
+    price: 10
+    model: {fileID: 919132149155446097, guid: e64e0bbb87361ec4695a17c020589c1b, type: 3}
+    icon: {fileID: 2800000, guid: 1f6b018531d1daa44a5617b8593d49fd, type: 3}

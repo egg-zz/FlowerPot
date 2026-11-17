@@ -48,6 +48,8 @@ namespace PotMerge
             public long luckyBoxNextTicks;   // UTC ticks when the lucky box opens again (0 = ready now)
             public string adDate = "";
             public int adsToday;
+            public List<string> ownedCostumes = new List<string>();
+            public string[] equipped = new string[5]; // costume id per CostumeSlot, "" = none
         }
 
         static Data data;
@@ -157,6 +159,31 @@ namespace PotMerge
             D.coins += AdCoins;
             Commit();
             return true;
+        }
+
+        // ------------------------------------------------------------------ owner costumes
+        public static bool OwnsCostume(string id) => D.ownedCostumes.Contains(id);
+
+        /// <summary>Buys a costume with coins or jewels. Returns false if already owned or not affordable.</summary>
+        public static bool BuyCostume(string id, Currency currency, int price)
+        {
+            if (string.IsNullOrEmpty(id) || OwnsCostume(id)) return false;
+            if (currency == Currency.Coin) { if (D.coins < price) return false; D.coins -= price; }
+            else { if (D.jewels < price) return false; D.jewels -= price; }
+            D.ownedCostumes.Add(id);
+            Commit();
+            return true;
+        }
+
+        public static string Equipped(CostumeSlot slot) => D.equipped[(int)slot] ?? "";
+
+        /// <summary>Wears an owned costume (replacing the one in the same slot), or takes it off if it is already worn.</summary>
+        public static void ToggleEquip(string id, CostumeSlot slot)
+        {
+            if (!OwnsCostume(id)) return;
+            int s = (int)slot;
+            D.equipped[s] = D.equipped[s] == id ? "" : id;
+            Commit();
         }
 
         // ------------------------------------------------------------------ chains / collection
@@ -315,6 +342,11 @@ namespace PotMerge
             if (data.best == null || data.best.Length != ChainCount) Array.Resize(ref data.best, ChainCount);
             if (data.unlockedMask == null || data.unlockedMask.Length != ChainCount) Array.Resize(ref data.unlockedMask, ChainCount);
             if (data.quests == null) data.quests = new List<Quest>();
+            if (data.ownedCostumes == null) data.ownedCostumes = new List<string>();
+            // the lucky box interval got shorter: never wait longer than the current interval
+            long maxNext = DateTime.UtcNow.AddHours(LuckyBoxHours).Ticks;
+            if (data.luckyBoxNextTicks > maxNext) data.luckyBoxNextTicks = maxNext;
+            if (data.equipped == null || data.equipped.Length != 5) Array.Resize(ref data.equipped, 5);
         }
 
 #if UNITY_EDITOR
