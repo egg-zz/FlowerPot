@@ -93,9 +93,9 @@ namespace PotMerge
             }
             else
             {
-                titleBlock.Add(LetterRow("FLOWER", 190, 0));
-                var pot = LetterRow("POT", 250, 6);
-                pot.style.marginTop = -30;
+                titleBlock.Add(LetterRow("FLOWER", 245, 0));
+                var pot = LetterRow("POT", 340, 6);
+                pot.style.marginTop = TitleFont != null ? -180 : -30; // Modak has a very tall line box
                 titleBlock.Add(pot);
             }
             layer.Add(titleBlock);
@@ -122,11 +122,13 @@ namespace PotMerge
             row.style.flexDirection = FlexDirection.Row;
             for (int i = 0; i < word.Length; i++)
             {
+                // puffy sticker letters: bubble font, dark brown outline and a solid drop shadow
                 var l = MakeLabel(word[i].ToString(), size, LetterColors[(i + colorOffset) % LetterColors.Length]);
-                l.style.unityTextOutlineWidth = size * 0.05f;
-                l.style.unityTextOutlineColor = Color.white;
-                l.style.textShadow = new TextShadow { offset = new Vector2(0f, size * 0.06f), blurRadius = 0f, color = new Color(0.35f, 0.22f, 0.15f, 0.45f) };
-                l.style.marginLeft = size * 0.02f; l.style.marginRight = size * 0.02f;
+                if (TitleFont != null) l.style.unityFontDefinition = FontDefinition.FromFont(TitleFont);
+                l.style.unityTextOutlineWidth = size * 0.035f;
+                l.style.unityTextOutlineColor = new Color(0.36f, 0.22f, 0.16f);
+                l.style.textShadow = new TextShadow { offset = new Vector2(size * 0.025f, size * 0.05f), blurRadius = 0f, color = new Color(0.36f, 0.22f, 0.16f, 0.9f) };
+                l.style.marginLeft = -size * 0.02f; l.style.marginRight = -size * 0.02f;
                 row.Add(l);
                 titleLetters.Add(l);
             }
@@ -152,20 +154,25 @@ namespace PotMerge
             homeCoins = MakeLabel("0", 46, Ink);
             coinPill.Add(homeCoins);
             top.Add(coinPill);
-            top.Add(IconButton(IconShape.Gear, 110, OpenSettings));
+
+            // top right: collection, then settings
+            var topRight = new VisualElement { pickingMode = PickingMode.Ignore };
+            topRight.style.flexDirection = FlexDirection.Row;
+            topRight.style.alignItems = Align.FlexStart;
+            topRight.Add(MenuButton(IconShape.Book, "COLLECTION", new Color(0.40f, 0.70f, 0.95f), OpenCollection, out _, 110, 200));
+            topRight.Add(IconButton(IconShape.Gear, 110, OpenSettings));
+            top.Add(topRight);
             layer.Add(top);
 
-            // ---- three round menu buttons above GAME START ----
-            var menu = new VisualElement { pickingMode = PickingMode.Ignore };
-            menu.style.position = Position.Absolute;
-            menu.style.left = 0; menu.style.right = 0;
-            menu.style.top = Length.Percent(58);
-            menu.style.flexDirection = FlexDirection.Row;
-            menu.style.justifyContent = Justify.Center;
-            menu.Add(MenuButton(IconShape.Star, "QUESTS", new Color(1f, 0.72f, 0.25f), OpenQuests, out questBadge));
-            menu.Add(MenuButton(IconShape.Book, "COLLECTION", new Color(0.40f, 0.70f, 0.95f), OpenCollection, out _));
-            menu.Add(MenuButton(IconShape.Bag, "SHOP", PinkDark, OpenShop, out _));
-            layer.Add(menu);
+            // left column under the coins: quests, then shop
+            var left = new VisualElement { pickingMode = PickingMode.Ignore };
+            left.style.position = Position.Absolute;
+            left.style.left = 30; left.style.top = 210;
+            left.Add(MenuButton(IconShape.Star, "QUESTS", new Color(1f, 0.72f, 0.25f), OpenQuests, out questBadge));
+            var shop = MenuButton(IconShape.Bag, "SHOP", PinkDark, OpenShop, out _);
+            shop.style.marginTop = 24;
+            left.Add(shop);
+            layer.Add(left);
 
             // ---- GAME START at 3/4 of the screen height ----
             var startWrap = new VisualElement { pickingMode = PickingMode.Ignore };
@@ -180,17 +187,18 @@ namespace PotMerge
             return layer;
         }
 
-        static VisualElement MenuButton(IconShape shape, string text, Color iconColor, Action onClick, out Label badge)
+        static VisualElement MenuButton(IconShape shape, string text, Color iconColor, Action onClick, out Label badge,
+            float size = 150f, float width = 190f)
         {
             var wrap = new VisualElement { pickingMode = PickingMode.Ignore };
             wrap.style.alignItems = Align.Center;
-            wrap.style.width = 250;
-            var btn = IconButton(shape, 170, onClick, iconColor);
+            wrap.style.width = width;
+            var btn = IconButton(shape, size, onClick, iconColor);
             wrap.Add(btn);
 
             badge = MakeLabel("", 34, Color.white);
             badge.style.position = Position.Absolute;
-            badge.style.top = -6; badge.style.right = 34;
+            badge.style.top = -8; badge.style.right = (width - size) * 0.5f - 14f;
             badge.style.minWidth = 56; badge.style.height = 56;
             badge.style.unityTextAlign = TextAnchor.MiddleCenter;
             badge.style.backgroundColor = Pink;
@@ -199,8 +207,8 @@ namespace PotMerge
             badge.style.display = DisplayStyle.None;
             wrap.Add(badge);
 
-            var label = MakeLabel(text, 34, Color.white);
-            label.style.marginTop = 10;
+            var label = MakeLabel(text, size >= 140f ? 32 : 26, Color.white);
+            label.style.marginTop = 8;
             label.style.unityTextOutlineWidth = 3f;
             label.style.unityTextOutlineColor = new Color(0.35f, 0.22f, 0.15f);
             wrap.Add(label);

@@ -21,12 +21,12 @@ Unity 프로젝트 + 3ds Max 모델링을 MCP로 연결해서 만드는 머지 �
 - 6초간 입력이 없으면 머지 가능한 두 아이템이 흔들리는 힌트
 
 ## 화면 구성 (구현됨)
-1. **타이틀**: 둥근 섬 위에 꽃집 하나, "FLOWER / POT" 글씨가 둥실둥실 떠다님, 탭하면 홈으로
-   - 둥근 꽃집 + 풍선 글자 제목은 Max에서 모델링함(`D:\KSR_26.11.17_RoundShop_Title.max`, `RoundShop` / `Title` 루트) — 사용자 OK 후 Unity에 넣을 예정
-2. **홈**: 상단 코인 / 설정 버튼, QUESTS·COLLECTION·SHOP 둥근 버튼 3개, 화면 3/4 지점에 GAME START 버튼
+1. **타이틀**: 둥근 섬 위에 꽃집 하나, "FLOWER / POT" 버블 글씨(Modak, 갈색 외곽선+그림자)가 글자별로 둥실둥실, 탭하면 홈으로
+   - 둥근 꽃집은 Max에서 모델링함(`D:\KSR_26.11.17_RoundShop_Title.max`, `RoundShop` 루트) — 사용자 OK 후 Unity에 넣을 예정. 같은 파일의 `Title`(캡슐 글자)은 버블 폰트로 대체되어 안 씀
+2. **홈**: 좌상단 코인, 그 아래 QUESTS → SHOP 버튼, 우상단 COLLECTION → 설정 버튼, 화면 3/4 지점에 GAME START
    - 체인별 최고 단계는 도감 탭에, 일일 퀘스트는 QUESTS 버튼 팝업에 있다
 - UI는 전부 둥글게(알약 버튼, 큰 모서리). 보드 타일도 둥근 모서리 메시(`RoundedMesh.cs`)
-- 둥근 폰트: `Assets/PotMerge/Resources/RoundFont.ttf`를 넣으면 모든 글자에 적용됨 (아직 없음, OFL 폰트 다운로드는 사용자 확인 필요)
+- 폰트(`Assets/PotMerge/Resources/`, 둘 다 SIL OFL, 라이선스 txt 같이 둠): `RoundFont.ttf` = Titan One(모든 UI 글자), `TitleFont.ttf` = Modak(타이틀)
 3. **게임**: 보드, 코인, 홈·설정 버튼, ADD ITEM 버튼 (게임 오버 카드에 HOME / RESTART)
 - 설정: 사운드 on/off, 진행 초기화(확인 팝업) / 도감: 체인 탭별 11칸, 미해금은 흐린 실루엣 + ???
 - 일일 퀘스트: 날짜 기준으로 하루 3개, 완료하면 CLAIM으로 코인 보상

@@ -38,6 +38,19 @@ namespace PotMerge
             }
         }
 
+        static bool titleFontLoaded;
+        static Font titleFont;
+
+        /// <summary>Puffy display font for the title (Assets/PotMerge/Resources/TitleFont.ttf, Modak, SIL OFL).</summary>
+        public static Font TitleFont
+        {
+            get
+            {
+                if (!titleFontLoaded) { titleFont = Resources.Load<Font>("TitleFont"); titleFontLoaded = true; }
+                return titleFont;
+            }
+        }
+
         public static Label MakeLabel(string text, float size, Color color)
         {
             var l = new Label(text) { pickingMode = PickingMode.Ignore };
