@@ -54,7 +54,7 @@ Unity 프로젝트 + 3ds Max 모델링을 MCP로 연결해서 만드는 머지 �
 - 모델: `Assets/Models/Hamster/Hamster.fbx` — 몸·머리·볼이 **한 덩어리 매끈한 메시**, 흰 얼굴/분홍 볼/흰 배는 **정점 색**(셰이더 `PotMerge/VertexColorLit`, 재질 `HM_SkinVC`)
 - 코스튬 FBX는 햄스터 원점 기준으로 내보내서 그대로 겹쳐 붙인다. **25개 전부 상점 등록됨** → `Assets/PotMerge/Data/CostumeDatabase.asset` (슬롯 순서로 정렬)
   - 원래 3개: `Assets/Models/Hamster/Costume_*.fbx` / 새 22개: `Assets/Models/Hamster/Costumes/<id>.fbx`, 아이콘 `Assets/PotMerge/Icons/Costumes/<id>.png`
-  - 가격: 코인 30~60, 쥬얼리 10~20 (Flower Crown 10, Heart Shades 10, Ice Cream Hat 12, Star Wand 15, Sakura Kimono 18, Crown 20, Princess Dress 20)
+  - 가격: **코인 150~400** (2026-11-19에 30~60에서 올림: 150 = 밀짚모자·새싹 핀·안경·하트 스티커·리본, 180·200·240·280·320, 비옷 400), 쥬얼리 10~20 (Flower Crown 10, Heart Shades 10, Ice Cream Hat 12, Star Wand 15, Sakura Kimono 18, Crown 20, Princess Dress 20)
   - 옷(앞치마·멜빵 바지·드레스 등)은 Max에서 햄스터 몸 단면 표를 따라 감싸는 메시로 만든다
 - 슬롯: Hat / Face / Neck / Body / Hand — 같은 슬롯은 하나만 착용. 상점 COSTUMES 탭에서 구매(바로 착용)·WEAR/WEARING 토글 (상점은 COSTUMES / COINS 두 탭)
   - COSTUMES 탭: ALL / HAT / FACE / NECK / BODY / HAND 필터 칩 + 세로 스크롤 목록 (구매 후 다시 열려도 스크롤 위치 유지)
