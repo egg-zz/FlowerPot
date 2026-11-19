@@ -19,6 +19,11 @@ namespace PotMerge
         Camera cam;
         RenderTexture rt;
 
+        /// <summary>The rendered hamster (also shown in the shop as the try-on preview).</summary>
+        public RenderTexture Texture => rt;
+        /// <summary>Keep rendering outside the game screen (the shop preview sets this while it is open).</summary>
+        public bool ForceRender { get; set; }
+
         void Start()
         {
             if (costumes == null || costumes.hamsterModel == null || hud == null) { enabled = false; return; }
@@ -58,8 +63,8 @@ namespace PotMerge
 
         void Update()
         {
-            // only render while the game screen is up
-            if (cam != null && board != null) cam.enabled = board.Active;
+            // only render while the game screen (or the shop preview) is up
+            if (cam != null && board != null) cam.enabled = board.Active || ForceRender;
         }
     }
 }

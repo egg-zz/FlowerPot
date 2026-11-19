@@ -4,7 +4,7 @@ using UnityEngine.UIElements;
 
 namespace PotMerge
 {
-    public enum IconShape { Home, Gear, Book, Bag, Close, Check, Star, Gem, Gift, Play, Heart, Bolt }
+    public enum IconShape { Home, Gear, Book, Bag, Close, Check, Star, Gem, Gift, Play, Heart, Bolt, Lock, Clock }
 
     /// <summary>Shared look for all runtime-built UI Toolkit screens (reference resolution 1080x1920).</summary>
     public static class UIKit
@@ -57,7 +57,7 @@ namespace PotMerge
             if (RoundFont != null) l.style.unityFontDefinition = FontDefinition.FromFont(RoundFont);
             l.style.fontSize = size;
             l.style.color = color;
-            l.style.unityFontStyleAndWeight = FontStyle.Bold;
+            l.style.unityFontStyleAndWeight = FontStyle.Normal; // Titan One is already heavy: no synthetic bold
             l.style.marginLeft = 0; l.style.marginRight = 0; l.style.marginTop = 0; l.style.marginBottom = 0;
             l.style.paddingLeft = 0; l.style.paddingRight = 0; l.style.paddingTop = 0; l.style.paddingBottom = 0;
             return l;
@@ -281,6 +281,35 @@ namespace PotMerge
                         p.Fill();
                         p.fillColor = new Color(1f, 1f, 1f, 0.8f);
                         p.BeginPath(); p.Arc(new Vector2(s * 0.28f, s * 0.32f), s * 0.07f, 0f, 360f); p.Fill();
+                        break;
+                    }
+                    case IconShape.Clock:
+                    {
+                        var c = new Vector2(s * 0.5f, s * 0.5f);
+                        p.BeginPath(); p.Arc(c, s * 0.46f, 0f, 360f); p.Fill();
+                        p.fillColor = Color.white;
+                        p.BeginPath(); p.Arc(c, s * 0.34f, 0f, 360f); p.Fill();
+                        p.strokeColor = Ink; p.lineWidth = s * 0.09f;
+                        p.BeginPath(); p.MoveTo(c); p.LineTo(c + new Vector2(0f, -s * 0.24f)); p.Stroke();
+                        p.BeginPath(); p.MoveTo(c); p.LineTo(c + new Vector2(s * 0.17f, s * 0.06f)); p.Stroke();
+                        break;
+                    }
+                    case IconShape.Lock:
+                    {
+                        // shackle + rounded body + keyhole
+                        p.lineWidth = s * 0.12f;
+                        p.BeginPath();
+                        p.Arc(new Vector2(s * 0.5f, s * 0.42f), s * 0.2f, 180f, 360f);
+                        p.MoveTo(new Vector2(s * 0.3f, s * 0.42f)); p.LineTo(new Vector2(s * 0.3f, s * 0.5f));
+                        p.MoveTo(new Vector2(s * 0.7f, s * 0.42f)); p.LineTo(new Vector2(s * 0.7f, s * 0.5f));
+                        p.Stroke();
+                        p.BeginPath();
+                        p.MoveTo(new Vector2(s * 0.2f, s * 0.48f)); p.LineTo(new Vector2(s * 0.8f, s * 0.48f));
+                        p.LineTo(new Vector2(s * 0.8f, s * 0.9f)); p.LineTo(new Vector2(s * 0.2f, s * 0.9f));
+                        p.ClosePath();
+                        p.Fill();
+                        p.fillColor = new Color(1f, 1f, 1f, 0.75f);
+                        p.BeginPath(); p.Arc(new Vector2(s * 0.5f, s * 0.64f), s * 0.07f, 0f, 360f); p.Fill();
                         break;
                     }
                     case IconShape.Bolt:

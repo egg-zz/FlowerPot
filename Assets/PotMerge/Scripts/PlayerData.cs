@@ -194,7 +194,7 @@ namespace PotMerge
         }
 
         // ------------------------------------------------------------------ levels
-        public const int StarCoins = 2;            // coins per star, first clear only
+        public const int ClearEnergy = 3;          // energy for every clear (replays too)
         public const int JewelLevelInterval = 10;  // every 10th level also gives jewels
         public const int JewelLevelReward = 3;
 
@@ -203,27 +203,38 @@ namespace PotMerge
         public static int Stars(int level) =>
             level >= 1 && level <= D.levelStars.Count ? D.levelStars[level - 1] : 0;
 
-        /// <summary>
-        /// Records a cleared level. Rewards are paid only the first time a level is cleared:
-        /// <see cref="StarCoins"/> per star, plus <see cref="JewelLevelReward"/> jewels on every 10th level.
-        /// </summary>
-        public static (int coins, int jewels) CompleteLevel(int level, int stars)
+        /// <summary>Coins for a first clear: a random amount that grows with the stars (1: 2-3, 2: 3-6, 3: 4-9).</summary>
+        public static int RollClearCoins(int stars)
         {
-            if (level < 1) return (0, 0);
+            stars = Mathf.Clamp(stars, 1, 3);
+            return UnityEngine.Random.Range(stars + 1, stars * 3 + 1);
+        }
+
+        /// <summary>
+        /// Records a cleared level. Every clear gives <see cref="ClearEnergy"/> energy (it may go above the max).
+        /// The first clear also gives a random coin amount (<see cref="RollClearCoins"/>) and, on every 10th level,
+        /// <see cref="JewelLevelReward"/> jewels.
+        /// </summary>
+        public static (int coins, int jewels, int energy) CompleteLevel(int level, int stars)
+        {
+            if (level < 1) return (0, 0, 0);
             while (D.levelStars.Count < level) D.levelStars.Add(0);
             bool firstClear = level >= D.levelReached;
             D.levelStars[level - 1] = Mathf.Max(D.levelStars[level - 1], stars);
-            int coins = 0, jewels = 0;
+            int coins = 0, jewels = 0, energy = ClearEnergy;
+            RegenEnergy();
+            D.energy += energy;
+            if (D.energy >= MaxEnergy) D.energyNextTicks = 0;
             if (firstClear)
             {
-                coins = stars * StarCoins;
+                coins = RollClearCoins(stars);
                 if (level % JewelLevelInterval == 0) jewels = JewelLevelReward;
                 D.coins += coins;
                 D.jewels += jewels;
                 D.levelReached = level + 1;
             }
             Commit();
-            return (coins, jewels);
+            return (coins, jewels, energy);
         }
 
         // ------------------------------------------------------------------ hearts (lives)

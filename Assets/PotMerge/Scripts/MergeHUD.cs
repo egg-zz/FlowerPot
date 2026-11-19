@@ -266,7 +266,7 @@ namespace PotMerge
             return card;
         }
 
-        public void ShowLevelClear(int number, int stars, int coins, int jewels, bool hasNext)
+        public void ShowLevelClear(int number, int stars, int coins, int jewels, int energy, bool hasNext)
         {
             var card = ResultCard($"LEVEL {number} CLEAR!", Green);
             var starRow = Row();
@@ -280,22 +280,18 @@ namespace PotMerge
             }
             card.Add(starRow);
 
-            if (coins > 0 || jewels > 0)
+            var rew = Row();
+            rew.style.marginBottom = coins > 0 || jewels > 0 ? 36 : 12;
+            bool first = true;
+            void Gap(VisualElement v) { if (!first) v.style.marginLeft = 40; first = false; }
+            if (coins > 0) { var c = CoinIcon(60, 12); Gap(c); rew.Add(c); rew.Add(MakeLabel("+" + coins, 60, Ink)); }
+            if (energy > 0) { var e = Icon(IconShape.Bolt, 62, EnergyColor); e.style.marginRight = 8; Gap(e); rew.Add(e); rew.Add(MakeLabel("+" + energy, 60, Ink)); }
+            if (jewels > 0) { var j = JewelIcon(62, 10); Gap(j); rew.Add(j); rew.Add(MakeLabel("+" + jewels, 60, JewelColor)); }
+            card.Add(rew);
+            if (coins == 0 && jewels == 0)
             {
-                var rew = Row();
-                rew.style.marginBottom = 36;
-                if (coins > 0) { rew.Add(CoinIcon(60, 12)); rew.Add(MakeLabel("+" + coins, 60, Ink)); }
-                if (jewels > 0)
-                {
-                    var j = JewelIcon(62, 10); j.style.marginLeft = coins > 0 ? 40 : 0;
-                    rew.Add(j); rew.Add(MakeLabel("+" + jewels, 60, JewelColor));
-                }
-                card.Add(rew);
-            }
-            else
-            {
-                var note = MakeLabel("Rewards are for the first clear", 32, InkSoft);
-                note.style.marginBottom = 36;
+                var note = MakeLabel("Coins are for the first clear", 30, InkSoft);
+                note.style.marginBottom = 30;
                 card.Add(note);
             }
 

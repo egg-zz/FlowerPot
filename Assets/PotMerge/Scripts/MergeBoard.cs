@@ -11,7 +11,8 @@ namespace PotMerge
     ///  - Only the same chain + same level merge. Dropping onto any other item swaps them.
     ///  - Merging two level-N items gives one level-(N+1) item and +(N-1) coins (level-1 merges give none).
     ///  - Each level (<see cref="LevelDatabase"/>) has goals, a time limit (0 = none), a fixed starting board and
-    ///    4 item boxes (one per chain) standing on board cells. Tapping a box costs 1 energy and drops a level 1-3 item
+    ///    4 item boxes (one per chain) standing on board cells. Tapping a box costs 1 energy and drops a level 1-2 item
+    ///    (1-3 from level 25, when board blockers start)
     ///    of that chain into the nearest empty cell. Boxes can be dragged around but never merge.
     ///  - All goals done = clear (1-3 stars by time left). Time up or board full with no merge = fail. Giving up a failed
     ///    level costs a heart; time up can be extended with an ad or jewels.
@@ -41,9 +42,14 @@ namespace PotMerge
         [Header("Item boxes")]
         [Tooltip("Box model per chain (0 Flower, 1 Cafe, 2 Bakery, 3 Ice Cream)")]
         public GameObject[] boxModels = new GameObject[4];
-        [Tooltip("Lowest / highest level a box drops (rolled evenly)")]
+        [Tooltip("Lowest level a box drops")]
         public int boxMinLevel = 1;
+        [Tooltip("Highest level a box drops in early levels (rolled evenly between min and this)")]
+        public int boxMaxLevelEarly = 2;
+        [Tooltip("Highest level a box drops from boxUpgradeLevel on")]
         public int boxMaxLevel = 3;
+        [Tooltip("From this level on (board blockers start at 25) boxes can drop up to boxMaxLevel")]
+        public int boxUpgradeLevel = 25;
         public int energyPerTap = 1;
         [Tooltip("A press that moves less than this (pixels) counts as a tap on a box")]
         public float tapSlop = 18f;
@@ -284,14 +290,14 @@ namespace PotMerge
             float frac = Timed ? timeLeft / level.seconds : 1f;
             int stars = extended ? 1 : frac >= 0.5f ? 3 : frac >= 0.25f ? 2 : 1;
             var reward = PlayerData.CompleteLevel(levelNumber, stars);
-            StartCoroutine(ShowClearSoon(stars, reward.coins, reward.jewels));
+            StartCoroutine(ShowClearSoon(stars, reward.coins, reward.jewels, reward.energy));
         }
 
-        IEnumerator ShowClearSoon(int stars, int coins, int jewels)
+        IEnumerator ShowClearSoon(int stars, int coins, int jewels, int energy)
         {
             yield return new WaitForSeconds(0.7f);
             SoundFx.Unlock();
-            hud?.ShowLevelClear(levelNumber, stars, coins, jewels, levelNumber < levels.Count);
+            hud?.ShowLevelClear(levelNumber, stars, coins, jewels, energy, levelNumber < levels.Count);
         }
 
         /// <summary>Gives up a failed (or stuck) level: costs a heart.</summary>
@@ -687,7 +693,7 @@ namespace PotMerge
         /// <summary>Coins for merging two level-N items: level-1 merges give nothing, then N-1 (2 -> +1, 3 -> +2, ...).</summary>
         public static long MergeCoins(int fromLevel) => Math.Max(0, fromLevel - 1);
 
-        /// <summary>Tapping an item box: costs energy, drops a level 1-3 item of the box's chain next to it.</summary>
+        /// <summary>Tapping an item box: costs energy, drops a level 1-2 item (1-3 from boxUpgradeLevel) of the box's chain next to it.</summary>
         void TapBox(PotItem box)
         {
             idleTimer = 0f;
@@ -707,7 +713,8 @@ namespace PotMerge
                 NeedEnergy?.Invoke();
                 return;
             }
-            int lo = Mathf.Clamp(boxMinLevel, 1, MaxLevel), hi = Mathf.Clamp(boxMaxLevel, lo, MaxLevel);
+            int top = levelNumber >= boxUpgradeLevel ? boxMaxLevel : boxMaxLevelEarly;
+            int lo = Mathf.Clamp(boxMinLevel, 1, MaxLevel), hi = Mathf.Clamp(top, lo, MaxLevel);
             int lv = UnityEngine.Random.Range(lo, hi + 1);
             var item = CreateItem(box.Chain, lv, cell);
             item.transform.position = box.transform.position + Vector3.up * 1.2f;

@@ -11,7 +11,7 @@ namespace PotMerge
     /// Uses the same PanelSettings as the game HUD and sits above it (higher sorting order).
     /// </summary>
     [RequireComponent(typeof(UIDocument))]
-    public class MenuUI : MonoBehaviour
+    public partial class MenuUI : MonoBehaviour
     {
         public ChainDatabase database;
         public MergeBoard board;
@@ -66,11 +66,13 @@ namespace PotMerge
 
             titleLayer = BuildTitle();
             homeLayer = BuildHome();
+            mapLayer = BuildMap();
             popupLayer = new VisualElement { pickingMode = PickingMode.Ignore };
             Stretch(popupLayer);
 
             root.Add(titleLayer);
             root.Add(homeLayer);
+            root.Add(mapLayer);
             root.Add(popupLayer);
             HideScreens();
 
@@ -270,6 +272,7 @@ namespace PotMerge
             ClosePopups();
             Show(titleLayer, true);
             Show(homeLayer, false);
+            Show(mapLayer, false);
         }
 
         public void ShowHome()
@@ -277,6 +280,7 @@ namespace PotMerge
             ClosePopups();
             Show(titleLayer, false);
             Show(homeLayer, true);
+            Show(mapLayer, false);
             dirty = true;
             RefreshHome();
         }
@@ -286,6 +290,7 @@ namespace PotMerge
             ClosePopups();
             Show(titleLayer, false);
             Show(homeLayer, false);
+            Show(mapLayer, false);
         }
 
         void RefreshHome()
@@ -505,17 +510,22 @@ namespace PotMerge
         }
 
         // ------------------------------------------------------------------ popups
+        bool swappingPopup; // true while one popup replaces another (keeps the shop try-on alive)
+
         void ClosePopups()
         {
             questsOpen = false;
             heartsOpen = false;
             energyOpen = false;
             popupLayer?.Clear();
+            if (!swappingPopup) EndTryOn();
         }
 
         void OpenPopup(VisualElement popup)
         {
+            swappingPopup = true;
             ClosePopups();
+            swappingPopup = false;
             popupLayer.Add(popup);
         }
 
@@ -825,6 +835,7 @@ namespace PotMerge
             OpenPopup(popup);
         }
 
+        const float CostumeRowHeight = 334f; // one costume card (318) + the gap under it
         int costumeFilter = -1;      // -1 = all, otherwise a CostumeSlot
         float costumeScroll;         // kept across shop rebuilds (buy / wear re-open the popup)
 
@@ -852,8 +863,17 @@ namespace PotMerge
             }
             body.Add(chips);
 
+            // try-on hamster (left) | costume grid (right)
+            var split = new VisualElement { pickingMode = PickingMode.Ignore };
+            split.style.flexDirection = FlexDirection.Row;
+            split.style.alignItems = Align.FlexStart;
+            body.Add(split);
+            split.Add(TryOnPanel());
+
             var scroll = new ScrollView(ScrollViewMode.Vertical);
-            scroll.style.maxHeight = 1000;
+            scroll.style.height = CostumeRowHeight * 2 - 16; // exactly 2 rows (4 cards) visible, the rest scrolls
+            scroll.style.flexGrow = 1;
+            scroll.style.marginLeft = 14;
             scroll.horizontalScrollerVisibility = ScrollerVisibility.Hidden;
             scroll.verticalScrollerVisibility = ScrollerVisibility.Hidden;
             scroll.touchScrollBehavior = ScrollView.TouchScrollBehavior.Elastic;
@@ -868,7 +888,7 @@ namespace PotMerge
                 scroll.scrollOffset = new Vector2(0, Mathf.Min(restore, max));
                 restore = 0;
             });
-            body.Add(scroll);
+            split.Add(scroll);
 
             var row = ShopRow();
             row.style.flexWrap = Wrap.Wrap;
@@ -884,9 +904,23 @@ namespace PotMerge
                 icon.style.width = 110; icon.style.height = 110;
                 if (c.icon != null) icon.style.backgroundImage = new StyleBackground(c.icon);
                 var card = ShopCard(icon, c.displayName);
-                card.style.marginRight = (i % 3 == 2) ? 0 : 20;
-                card.style.marginBottom = 20;
+                card.style.width = 254;
+                card.style.height = CostumeRowHeight - 16;
+                card.style.justifyContent = Justify.SpaceBetween;
+                card.style.marginRight = (i % 2 == 1) ? 0 : 16;
+                card.style.marginBottom = 16;
                 ((Label)card[1]).style.fontSize = 28;
+                bool trying = CostumePreview.IsPreviewing(c.id);
+                Border(card, 6, trying ? new Color(0.40f, 0.70f, 0.95f) : Color.clear);
+                // tap the card (not its button) to try the costume on
+                card.pickingMode = PickingMode.Position;
+                card.RegisterCallback<ClickEvent>(e =>
+                {
+                    if (e.target is VisualElement ve && (ve is Button || ve.GetFirstAncestorOfType<Button>() != null)) return;
+                    SoundFx.Tap();
+                    CostumePreview.Toggle(c.id, c.slot);
+                    OpenShop();
+                });
                 bool owned = PlayerData.OwnsCostume(c.id);
                 bool wearing = PlayerData.Equipped(c.slot) == c.id;
                 Button btn;
@@ -894,7 +928,7 @@ namespace PotMerge
                 {
                     btn = BigButton(wearing ? "WEARING" : "WEAR", 230, 96, 32,
                         wearing ? Green : new Color(0.40f, 0.70f, 0.95f), wearing ? GreenDark : new Color(0.25f, 0.50f, 0.78f),
-                        () => { PlayerData.ToggleEquip(c.id, c.slot); OpenShop(); });
+                        () => { PlayerData.ToggleEquip(c.id, c.slot); CostumePreview.ClearSlot(c.slot); OpenShop(); });
                 }
                 else
                 {
@@ -902,7 +936,7 @@ namespace PotMerge
                     bool afford = jewel ? PlayerData.Jewels >= c.price : PlayerData.Coins >= c.price;
                     Color face = !afford ? Disabled : jewel ? JewelColor : Gold;
                     Color edge = !afford ? DisabledDark : Color.Lerp(face, Color.black, 0.3f);
-                    btn = BigButton("", 230, 96, 32, face, edge, () => BuyCostume(c));
+                    btn = BigButton("", 230, 96, 32, face, edge, () => AskBuyCostume(c));
                     var line = new VisualElement { pickingMode = PickingMode.Ignore };
                     line.style.flexDirection = FlexDirection.Row; line.style.alignItems = Align.Center;
                     line.Add(jewel ? Icon(IconShape.Gem, 40, Color.white) : CoinIcon(40, 6));
@@ -915,11 +949,93 @@ namespace PotMerge
             scroll.Add(row);
         }
 
+        // ------------------------------------------------------------------ try-on
+        OwnerPortrait portrait;
+
+        /// <summary>The hamster owner wearing what is equipped plus what is being tried on.</summary>
+        VisualElement TryOnPanel()
+        {
+            var panel = new VisualElement { pickingMode = PickingMode.Ignore };
+            panel.style.width = 290;
+            panel.style.flexShrink = 0;
+            panel.style.alignItems = Align.Center;
+            panel.style.backgroundColor = new Color(0.87f, 0.93f, 0.98f);
+            Round(panel, 50);
+            panel.style.paddingTop = 20; panel.style.paddingBottom = 22;
+            panel.Add(MakeLabel("TRY ON", 34, InkSoft));
+
+            if (portrait == null) portrait = FindFirstObjectByType<OwnerPortrait>();
+            // the portrait camera frames the hamster loosely: show it larger and crop the empty edges
+            var frame = new VisualElement { pickingMode = PickingMode.Ignore };
+            frame.style.width = 290; frame.style.height = 360;
+            frame.style.marginTop = 4;
+            frame.style.overflow = Overflow.Hidden;
+            var view = new VisualElement { pickingMode = PickingMode.Ignore };
+            view.style.position = Position.Absolute;
+            view.style.width = 470; view.style.height = 470;
+            view.style.left = (290 - 470) * 0.5f; view.style.top = -40;
+            if (portrait != null && portrait.Texture != null)
+            {
+                portrait.ForceRender = true;
+                view.style.backgroundImage = Background.FromRenderTexture(portrait.Texture);
+            }
+            frame.Add(view);
+            panel.Add(frame);
+
+            var hint = MakeLabel("Tap a costume\nto try it on", 24, InkSoft);
+            hint.style.unityTextAlign = TextAnchor.MiddleCenter;
+            hint.style.marginTop = 8; hint.style.marginBottom = 14;
+            panel.Add(hint);
+            panel.Add(BigButton("RESET", 220, 84, 30, new Color(0.62f, 0.66f, 0.72f), new Color(0.45f, 0.48f, 0.54f),
+                () => { CostumePreview.Clear(); OpenShop(); }));
+            return panel;
+        }
+
+        void EndTryOn()
+        {
+            CostumePreview.Clear();
+            if (portrait != null) portrait.ForceRender = false;
+        }
+
+        /// <summary>Asks before spending coins or jewels on a costume.</summary>
+        void AskBuyCostume(CostumeDatabase.Costume c)
+        {
+            bool jewel = c.currency == Currency.Jewel;
+            bool afford = jewel ? PlayerData.Jewels >= c.price : PlayerData.Coins >= c.price;
+            if (!afford) { SoundFx.Error(); return; }
+
+            var popup = Popup("BUY?", 760, out var body, OpenShop);
+            body.style.alignItems = Align.Center;
+            var icon = new VisualElement { pickingMode = PickingMode.Ignore };
+            icon.style.width = 220; icon.style.height = 220;
+            if (c.icon != null) icon.style.backgroundImage = new StyleBackground(c.icon);
+            body.Add(icon);
+            var name = MakeLabel(c.displayName, 50, Ink);
+            name.style.marginTop = 12;
+            body.Add(name);
+            var price = new VisualElement { pickingMode = PickingMode.Ignore };
+            price.style.flexDirection = FlexDirection.Row; price.style.alignItems = Align.Center;
+            price.style.marginTop = 16; price.style.marginBottom = 40;
+            price.Add(jewel ? JewelIcon(54) : CoinIcon(54, 12));
+            price.Add(MakeLabel(c.price.ToString(), 54, jewel ? JewelColor : Ink));
+            body.Add(price);
+            var btns = new VisualElement { pickingMode = PickingMode.Ignore };
+            btns.style.flexDirection = FlexDirection.Row;
+            var no = BigButton("NO", 260, 124, 46, new Color(0.62f, 0.66f, 0.72f), new Color(0.45f, 0.48f, 0.54f), OpenShop);
+            no.style.marginRight = 28;
+            btns.Add(no);
+            btns.Add(BigButton("BUY", 300, 124, 50, jewel ? JewelColor : Green,
+                jewel ? Color.Lerp(JewelColor, Color.black, 0.3f) : GreenDark, () => BuyCostume(c)));
+            body.Add(btns);
+            OpenPopup(popup);
+        }
+
         void BuyCostume(CostumeDatabase.Costume c)
         {
-            if (!PlayerData.BuyCostume(c.id, c.currency, c.price)) { SoundFx.Error(); return; }
+            if (!PlayerData.BuyCostume(c.id, c.currency, c.price)) { SoundFx.Error(); OpenShop(); return; }
             SoundFx.Unlock();
             PlayerData.ToggleEquip(c.id, c.slot); // wear it right away
+            CostumePreview.ClearSlot(c.slot);
             RefreshHome();
             OpenShop();
         }
@@ -984,6 +1100,8 @@ namespace PotMerge
                 float p = 1f + 0.04f * Mathf.Sin(t * 3.2f);
                 tapLabel.parent.style.scale = new Scale(new Vector3(p, p, 1f));
             }
+
+            AnimateMap(t);
 
             if (homeLayer.style.display != DisplayStyle.None)
             {

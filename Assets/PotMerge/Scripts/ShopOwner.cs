@@ -5,7 +5,7 @@ namespace PotMerge
 {
     /// <summary>
     /// The hamster shop owner standing in front of the flower shop (title/home backdrop).
-    /// Wears the costumes equipped in <see cref="PlayerData"/>, bounces gently and blinks.
+    /// Wears the costumes equipped in <see cref="PlayerData"/> (or tried on in the shop, <see cref="CostumePreview"/>), bounces gently and blinks.
     /// </summary>
     public class ShopOwner : MonoBehaviour
     {
@@ -36,9 +36,14 @@ namespace PotMerge
                 if (t.name.Contains("_Eye")) eyes.Add(t); // eyes and their highlights close together
             if (eyes.Count > 0) eyeScale = eyes[0].localScale;
             PlayerData.Changed += MarkDirty;
+            CostumePreview.Changed += MarkDirty;
         }
 
-        void OnDestroy() => PlayerData.Changed -= MarkDirty;
+        void OnDestroy()
+        {
+            PlayerData.Changed -= MarkDirty;
+            CostumePreview.Changed -= MarkDirty;
+        }
 
         void MarkDirty() => dirty = true;
 
@@ -47,7 +52,7 @@ namespace PotMerge
             dirty = false;
             foreach (CostumeSlot slot in System.Enum.GetValues(typeof(CostumeSlot)))
             {
-                var c = costumes.Find(PlayerData.Equipped(slot));
+                var c = costumes.Find(CostumePreview.Shown(slot));
                 worn.TryGetValue(slot, out var current);
                 if (c == null || c.model == null)
                 {

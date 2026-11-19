@@ -83,7 +83,7 @@ namespace PotMerge
         static LevelGoal Merge(int count, int chain = -1) => new LevelGoal { type = GoalType.MergeAny, chain = chain, count = count };
         static LevelGoal Make(int chain, int level) => new LevelGoal { type = GoalType.MakeItem, chain = chain, level = level, count = 1 };
 
-        /// <summary>Levels 1-9: tutorial-like, merge goals only, no time limit, the 4 item boxes on the bottom row. Later levels add timers, orders, crates and webs.</summary>
+        /// <summary>Levels 1-9: tutorial-like, no time limit. 10-14: the timer appears. Orders come at 15, board blockers at 25.</summary>
         public static Level[] DefaultLevels() => new[]
         {
             // 1: tutorial, one pair
@@ -113,6 +113,23 @@ namespace PotMerge
             // 9: a Bloom (Flower 6)
             new Level { goals = new[] { Make(0, 6) }, seconds = 0,
                 startItems = "F3 1 1; F3 5 5; F2 1 5; F2 5 1; F1 3 2; F1 3 4; C1 0 3; C2 6 3" },
+
+            // ---- 10-14: the timer appears (stars by time left) ----
+            // 10: first timed level, simple goal (also the first jewel reward)
+            new Level { goals = new[] { Merge(10) }, seconds = 80,
+                startItems = "F1 1 2; F1 5 2; C1 2 4; C1 4 4; B1 1 5; B1 5 5; I1 3 3; I1 3 6" },
+            // 11: an Orange Juice (Cafe 5)
+            new Level { goals = new[] { Make(1, 5) }, seconds = 90,
+                startItems = "C2 1 2; C2 5 2; C3 3 4; C1 2 5; F1 4 5; B1 0 4; I1 6 4" },
+            // 12: merges + a Bud (Flower 5)
+            new Level { goals = new[] { Merge(12), Make(0, 5) }, seconds = 100,
+                startItems = "F2 1 2; F2 5 2; F3 3 5; F1 2 4; C1 4 4; B2 0 3; I2 6 3" },
+            // 13: any level 6 item
+            new Level { goals = new[] { Make(-1, 6) }, seconds = 110,
+                startItems = "B3 1 2; B3 5 2; C3 2 5; F3 4 5; I2 3 3; B2 0 4; C2 6 4" },
+            // 14: ice cream merges + a Double Scoop (Ice Cream 5)
+            new Level { goals = new[] { Merge(8, 3), Make(3, 5) }, seconds = 110,
+                startItems = "I2 1 2; I2 5 2; I3 3 5; I1 2 4; I1 4 4; F1 0 3; C1 6 3" },
         };
 
         [ContextMenu("Reset To Default Levels")]

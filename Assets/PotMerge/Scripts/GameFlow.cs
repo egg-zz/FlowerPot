@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace PotMerge
 {
-    /// <summary>Screen flow: Title -> Home -> Game (and back to Home). Owns the camera hand-off between board and backdrop.</summary>
+    /// <summary>Screen flow: Title -> Home -> Level map -> Game (and back to Home). Owns the camera hand-off between board and backdrop.</summary>
     public class GameFlow : MonoBehaviour
     {
         public enum State { Title, Home, Game }
@@ -31,7 +31,9 @@ namespace PotMerge
             if (menu != null)
             {
                 menu.TitleTapped += ShowHome;
-                menu.StartClicked += StartGame;
+                menu.StartClicked += OnStartClicked;
+                menu.LevelChosen += PlayLevel;
+                menu.MapClosed += ShowHome;
             }
             if (board != null)
             {
@@ -53,7 +55,9 @@ namespace PotMerge
             if (menu != null)
             {
                 menu.TitleTapped -= ShowHome;
-                menu.StartClicked -= StartGame;
+                menu.StartClicked -= OnStartClicked;
+                menu.LevelChosen -= PlayLevel;
+                menu.MapClosed -= ShowHome;
             }
             if (board != null)
             {
@@ -86,18 +90,37 @@ namespace PotMerge
             menu?.ShowHome();
         }
 
-        /// <summary>GAME START: resume the level in progress, or start the next level (needs a heart).</summary>
+        /// <summary>Home's big button: resume the level in progress, otherwise open the level map.</summary>
+        void OnStartClicked()
+        {
+            if (board != null && board.LevelInProgress) StartGame();
+            else menu?.ShowMap();
+        }
+
+        /// <summary>Resume the level in progress, or start the next level (needs a heart).</summary>
         public void StartGame()
         {
             if (board == null) return;
-            bool resume = board.LevelInProgress;
-            if (!resume && PlayerData.Hearts <= 0) { OpenHearts(); return; }
+            if (board.LevelInProgress) { EnterGame(); return; }
+            PlayLevel(Mathf.Min(PlayerData.LevelReached, board.LevelCount));
+        }
+
+        /// <summary>Starts a level picked on the map (a cleared one to replay, or the next one). Needs a heart.</summary>
+        public void PlayLevel(int number)
+        {
+            if (board == null) return;
+            if (PlayerData.Hearts <= 0) { OpenHearts(); return; }
+            EnterGame();
+            board.StartLevel(number);
+        }
+
+        void EnterGame()
+        {
             Current = State.Game;
             menu?.HideScreens();
             backdrop?.Hide();
             hud?.SetVisible(true);
             board.Active = true;
-            if (!resume) board.StartLevel(Mathf.Min(PlayerData.LevelReached, board.LevelCount));
         }
 
         void EnterMenu(bool home)

@@ -19,10 +19,10 @@ Unity 프로젝트 + 3ds Max 모델링을 MCP로 연결해서 만드는 머지 �
 - 신규 플레이어 시작 코인 **15개**
 
 ### 레벨 모드 (2026-11-19부터, 무한 모드는 없앰)
-- 레벨 데이터: `Assets/PotMerge/Data/LevelDatabase.asset` (`LevelDatabase.cs`, 기본값은 `DefaultLevels()` — 에셋 우클릭 메뉴 "Reset To Default Levels"로 코드 값을 다시 채움). 지금은 **Lv 1~9** (머지 목표만, **제한 시간 없음** = 튜토리얼 느낌)
+- 레벨 데이터: `Assets/PotMerge/Data/LevelDatabase.asset` (`LevelDatabase.cs`, 기본값은 `DefaultLevels()` — 에셋 우클릭 메뉴 "Reset To Default Levels"로 코드 값을 다시 채움). 지금은 **Lv 1~14**: 1~9는 **제한 시간 없음**(튜토리얼 느낌), 10~14는 **타이머 첫 등장**(80~110초). 햄스터 주문은 Lv 15~, 보드 기믹(나무 상자·거미줄·잡초)은 Lv 25~ 예정
 - 레벨마다: **목표**(머지 N번 / 특정 체인 머지 N번 / 특정 아이템(또는 아무 체인 N단계) 만들기), **제한 시간**(0 = 없음), **디자인된 시작 보드**(`"F1 3 3; C2 0 6"` = 체인 글자 F/C/B/I + 단계, 칸 x y), **아이템 상자 위치**(`boxes`, 비우면 `"F 0 0; C 2 0; B 4 0; I 6 0"` = 맨 아래 줄)
-- **아이템 상자 4개**(ADD ITEM 대신, 2026-11-19): 체인마다 하나씩 보드 칸 위에 놓인다(`Gen_Flower/Cafe/Bakery/IceCream`, `Assets/Models/Generators/`, `MergeBoard.boxModels`). **톡 누르면 에너지 ⚡1**을 쓰고 그 체인의 **1~3단계**(같은 확률, `boxMinLevel/boxMaxLevel`) 아이템이 가장 가까운 빈 칸으로 나온다. 끌면 자리 이동, 머지는 안 됨(`PotItem.IsGenerator` = Level 0). 빈 칸 없으면 막고 안내, 에너지 없으면 에너지 팝업. 상자에서 나온 아이템도 "만들기" 목표에 들어간다(그래서 만들기 목표는 4단계 이상)
-- 목표 다 채우면 **클리어** → 남은 시간 50% 이상 별 3 / 25% 이상 별 2 / 그 외 별 1 (시간 연장했으면 별 1, 시간 없는 레벨은 항상 별 3). **처음 깰 때만** 별당 2코인, 10레벨마다 쥬얼리 3개
+- **아이템 상자 4개**(ADD ITEM 대신, 2026-11-19): 체인마다 하나씩 보드 칸 위에 놓인다(`Gen_Flower/Cafe/Bakery/IceCream`, `Assets/Models/Generators/`, `MergeBoard.boxModels`). **톡 누르면 에너지 ⚡1**을 쓰고 그 체인의 **1~2단계**(보드 기믹이 나오는 **Lv 25부터 1~3단계**, 같은 확률, `boxMaxLevelEarly / boxMaxLevel / boxUpgradeLevel`) 아이템이 가장 가까운 빈 칸으로 나온다. 끌면 자리 이동, 머지는 안 됨(`PotItem.IsGenerator` = Level 0). 빈 칸 없으면 막고 안내, 에너지 없으면 에너지 팝업. 상자에서 나온 아이템도 "만들기" 목표에 들어간다(그래서 만들기 목표는 4단계 이상)
+- 목표 다 채우면 **클리어** → 남은 시간 50% 이상 별 3 / 25% 이상 별 2 / 그 외 별 1 (시간 연장했으면 별 1, 시간 없는 레벨은 항상 별 3). **매 클리어 에너지 ⚡+3**(최대치 넘어도 쌓임). **처음 깰 때만** 코인을 별에 따라 랜덤으로(별1: 2~3, 별2: 3~6, 별3: 4~9, `PlayerData.RollClearCoins`), 10레벨마다 쥬얼리 3개
 - **실패**: 시간 초과 → 광고 +30초 / 쥬얼리 5개 +30초 / HOME / RETRY. 보드 가득 + 머지 불가 → HOME / RETRY. **포기(HOME·RETRY)하면 하트 1개** 소모
 - **에너지 ⚡**: 최대 100, 2분마다 1 회복, 기존 플레이어는 100으로 시작. 홈(하트 옆)·게임 상단 ⚡ 알약을 누르면 에너지 팝업: 광고 +20(하루 광고 횟수에 포함) / 쥬얼리 10개 = 가득. 저장: `PlayerData.energy / energyNextTicks`
 - **하트 5개**, 30분마다 1개 회복, 0개면 레벨 시작 불가 → 광고 +1 / 쥬얼리 10개 = 가득. 홈 좌상단 하트 알약을 누르면 하트 팝업
@@ -38,12 +38,13 @@ Unity 프로젝트 + 3ds Max 모델링을 MCP로 연결해서 만드는 머지 �
 ## 화면 구성 (구현됨)
 1. **타이틀**: 둥근 섬 위에 꽃집 하나, "FLOWER / POT" 버블 글씨(Modak, 갈색 외곽선+그림자)가 글자별로 둥실둥실, 탭하면 홈으로
    - 둥근 꽃집: `Assets/Models/Shop/RoundShop.fbx` (원본 `D:\KSR_26.11.17_RoundShop_Title.max`의 `RoundShop`). 같은 파일의 `Title`(캡슐 글자)은 버블 폰트로 대체되어 안 씀
-2. **홈**: 좌상단 코인·쥬얼리, 그 아래 하트(개수 + 다음 회복 시간)와 ⚡ 에너지, QUESTS → SHOP → LUCKY BOX(남은 시간 표시), 우상단 COLLECTION → 설정, 화면 3/4 지점에 **LEVEL N** 버튼(진행 중이면 CONTINUE LV N). 레벨 지도 화면은 아직 없음
+2. **홈**: 좌상단 코인·쥬얼리, 그 아래 하트(개수 + 다음 회복 시간)와 ⚡ 에너지, QUESTS → SHOP → LUCKY BOX(남은 시간 표시), 우상단 COLLECTION → 설정, 화면 79% 지점에 **LEVEL N** 버튼 → **레벨 지도**(진행 중이면 CONTINUE LV N으로 바로 이어하기)
+   - **레벨 지도** (`MenuUI.Map.cs`): 아래(Lv 1)부터 위로 구불구불한 길. 깬 레벨 = 초록 + 별, 다음 레벨 = 분홍(통통 뜀, PLAY), 잠긴 레벨 = 회색 자물쇠. 타이머 레벨은 시계 배지, 10의 배수 레벨은 클리어 전까지 보석 배지. 위쪽 홈 버튼·LEVELS·별 합계, 아래 PLAY LEVEL N 버튼, 맨 위 MORE SOON!. 깬 레벨은 다시 할 수 있음(보상은 첫 클리어만)
    - 상점: 코스튬 구매·착용, 쥬얼리로 코인 팩 구매, 쥬얼리 팩(결제 미연결)
 3. 게임 카메라: 기울기 48도(`MergeBoard.cameraPitch`), 아이템은 칸을 거의 꽉 채움(`itemFootprint 0.95`)
    - 체인별 최고 단계는 도감 탭에, 일일 퀘스트는 QUESTS 버튼 팝업에 있다
 - UI는 전부 둥글게(알약 버튼, 큰 모서리). 보드 타일도 둥근 모서리 메시(`RoundedMesh.cs`)
-- 폰트(`Assets/PotMerge/Resources/`, 둘 다 SIL OFL, 라이선스 txt 같이 둠): `RoundFont.ttf` = Titan One(모든 UI 글자), `TitleFont.ttf` = Modak(타이틀)
+- 폰트(`Assets/PotMerge/Resources/`, 둘 다 SIL OFL, 라이선스 txt 같이 둠): `RoundFont.ttf` = Titan One(모든 UI 글자, 가짜 Bold는 끔 — 너무 뚱뚱해서), `TitleFont.ttf` = Modak(타이틀)
 3. **게임**: 보드(아이템 상자 4개 포함), 코인·쥬얼리·⚡ 에너지, 홈·설정 버튼, 좌상단 목표 카드(GOALS), 우상단 LEVEL N + 타이머(시간 있는 레벨만, 10초 이하 빨갛게), 하단 "TAP A BOX FOR ITEMS ⚡1" 안내, 클리어/실패 카드
 - 설정: 사운드 on/off, 진행 초기화(확인 팝업) / 도감: 체인 탭별 11칸, 미해금은 흐린 실루엣 + ???
 - 일일 퀘스트: 날짜 기준으로 하루 3개, 완료하면 CLAIM으로 코인 보상
@@ -56,8 +57,9 @@ Unity 프로젝트 + 3ds Max 모델링을 MCP로 연결해서 만드는 머지 �
   - 원래 3개: `Assets/Models/Hamster/Costume_*.fbx` / 새 22개: `Assets/Models/Hamster/Costumes/<id>.fbx`, 아이콘 `Assets/PotMerge/Icons/Costumes/<id>.png`
   - 가격: **코인 150~400** (2026-11-19에 30~60에서 올림: 150 = 밀짚모자·새싹 핀·안경·하트 스티커·리본, 180·200·240·280·320, 비옷 400), 쥬얼리 10~20 (Flower Crown 10, Heart Shades 10, Ice Cream Hat 12, Star Wand 15, Sakura Kimono 18, Crown 20, Princess Dress 20)
   - 옷(앞치마·멜빵 바지·드레스 등)은 Max에서 햄스터 몸 단면 표를 따라 감싸는 메시로 만든다
-- 슬롯: Hat / Face / Neck / Body / Hand — 같은 슬롯은 하나만 착용. 상점 COSTUMES 탭에서 구매(바로 착용)·WEAR/WEARING 토글 (상점은 COSTUMES / COINS 두 탭)
-  - COSTUMES 탭: ALL / HAT / FACE / NECK / BODY / HAND 필터 칩 + 세로 스크롤 목록 (구매 후 다시 열려도 스크롤 위치 유지)
+- 슬롯: Hat / Face / Neck / Body / Hand — 같은 슬롯은 하나만 착용. 상점 COSTUMES 탭에서 구매(**BUY? 확인 팝업** 후 바로 착용)·WEAR/WEARING 토글 (상점은 COSTUMES / COINS 두 탭)
+  - COSTUMES 탭: ALL / HAT / FACE / NECK / BODY / HAND 필터 칩, 왼쪽 **TRY ON 칸**(햄스터 사장님 착샷) + 오른쪽 2열 목록(**한 화면에 카드 4개**, 나머지는 스크롤) (구매 후 다시 열려도 스크롤 위치 유지)
+  - **착샷(TRY ON)**: 카드(버튼 말고 카드 자체)를 누르면 사지 않고 입어 봄(파란 테두리), 다시 누르면 벗음, RESET으로 전부 해제. 상점을 닫으면 원래대로. `CostumePreview.cs`가 슬롯별 미리보기를 들고 있고 `ShopOwner`가 장착 대신 그걸 입힘. 그림은 게임 화면 상단 햄스터와 같은 `OwnerPortrait` 렌더 텍스처(`ForceRender`로 상점에서도 렌더)
 - **게임 화면 상단 중앙**에도 햄스터가 코스튬을 입고 서 있고, **머지할 때마다 점프+한 바퀴** (높은 단계일수록 크게). 보드 아래 숨은 무대(y=-300)를 작은 카메라로 렌더해 HUD에 띄운다 (`OwnerPortrait.cs`)
 - Max 원본: `D:\KSR_26.11.17_Hamster.max` (`D:\KSR_26.11.17_RoundShop_Title.max`의 최신판)의 `Hamster_Base` / `Hamster_CoinLook` / `Hamster_JewelLook`, 코스튬 `Costume_*`(숨김, 내보내기용), 진열용 `Costume_Showcase/Show_*`
 - 코스튬 목록(제작 완료): 모자 — 요리사 모자, 바리스타 베레모, 새싹 머리핀, 꿀벌 더듬이, 딸기 모자, 아이스크림 콘 모자, 왕관 / 얼굴 — 동그란 안경, 하트 볼스티커, 하트 선글라스 / 목 — 리본 넥타이, 체크 스카프, 꽃 레이 / 몸 — 바리스타 앞치마, 멜빵 바지, 벚꽃 기모노, 공주 드레스, 노란 비옷 / 손 — 물뿌리개, 꽃다발, 아이스크림 콘, 별 마법봉
