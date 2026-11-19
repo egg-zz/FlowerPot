@@ -23,8 +23,8 @@ namespace PotMerge
         [Header("Camera")]
         public Vector3 cameraLocalPos = new Vector3(0f, 6f, -17f);
         public float cameraPitch = 12f;
-        [Tooltip("Home screen framing: tilted a bit more so the shop and owner sit above the GAME START button")]
-        public Vector3 homeCameraLocalPos = new Vector3(0f, 5.8f, -17f);
+        [Tooltip("Home screen framing: camera a bit higher than the title so the shop sits below the wallet/hearts pills and above the LEVEL button")]
+        public Vector3 homeCameraLocalPos = new Vector3(0f, 7.0f, -17f);
         public float homeCameraPitch = 16.5f;
         public float cameraFov = 50f;
         public float swayDegrees = 5f;

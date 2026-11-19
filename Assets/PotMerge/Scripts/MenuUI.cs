@@ -225,7 +225,7 @@ namespace PotMerge
             var startWrap = new VisualElement { pickingMode = PickingMode.Ignore };
             startWrap.style.position = Position.Absolute;
             startWrap.style.left = 0; startWrap.style.right = 0;
-            startWrap.style.top = Length.Percent(75);
+            startWrap.style.top = Length.Percent(79);
             startWrap.style.alignItems = Align.Center;
             startWrap.style.translate = new Translate(0, Length.Percent(-50));
             startButton = BigButton("", 660, 180, 70, Green, GreenDark, () => StartClicked?.Invoke());
