@@ -6,21 +6,22 @@ using UnityEngine;
 namespace PotMerge
 {
     /// <summary>
-    /// Core of the merge game (4 chains x 11 levels on a 7x7 board).
+    /// Core of the merge game (4 chains x 11 levels on a 7x7 board), played as designed levels.
     /// Rules:
     ///  - Only the same chain + same level merge. Dropping onto any other item swaps them.
-    ///  - Merging two level-N items gives one level-(N+1) item and +N coins.
-    ///  - New game: at least 15 coins, 7 random items (any chain, level 1-2).
-    ///  - ADD ITEM spawns a random item (any chain) and costs its level in coins (only affordable levels roll),
-    ///    as long as there is an empty cell. Spawn range:
-    ///    level 1-2 at first; making a level 4 opens 1-3, making a level 5 opens 1-4 (per game).
-    ///  - No merge possible and (no coins or board full) = game over.
-    /// Coins, unlocks and quests live in <see cref="PlayerData"/>; this class saves only the board.
+    ///  - Merging two level-N items gives one level-(N+1) item and +(N-1) coins (level-1 merges give none).
+    ///  - Each level (<see cref="LevelDatabase"/>) has goals, a time limit (0 = none), a fixed starting board and
+    ///    4 item boxes (one per chain) standing on board cells. Tapping a box costs 1 energy and drops a level 1-3 item
+    ///    of that chain into the nearest empty cell. Boxes can be dragged around but never merge.
+    ///  - All goals done = clear (1-3 stars by time left). Time up or board full with no merge = fail. Giving up a failed
+    ///    level costs a heart; time up can be extended with an ad or jewels.
+    /// A level in progress is kept in memory while the player visits the home screen; it is not saved to disk.
     /// </summary>
     public class MergeBoard : MonoBehaviour
     {
         [Header("Content")]
         public ChainDatabase database;
+        public LevelDatabase levels;
         [Tooltip("Max footprint (x/z) of an item, relative to the cell size")]
         public float itemFootprint = 0.8f;
         [Tooltip("Max height of an item in world units")]
@@ -37,40 +38,62 @@ namespace PotMerge
         public Color tileB = new Color(0.40f, 0.62f, 0.25f);
         public Color boardColor = new Color(0.45f, 0.29f, 0.18f);
 
+        [Header("Item boxes")]
+        [Tooltip("Box model per chain (0 Flower, 1 Cafe, 2 Bakery, 3 Ice Cream)")]
+        public GameObject[] boxModels = new GameObject[4];
+        [Tooltip("Lowest / highest level a box drops (rolled evenly)")]
+        public int boxMinLevel = 1;
+        public int boxMaxLevel = 3;
+        public int energyPerTap = 1;
+        [Tooltip("A press that moves less than this (pixels) counts as a tap on a box")]
+        public float tapSlop = 18f;
+
         [Header("Rules")]
-        public int startingItems = 7;
-        public int spawnMinLevel = 1;
-        [Tooltip("Max spawn level at the start of a game (starting items and ADD ITEM)")]
-        public int earlySpawnMaxLevel = 2;
-        [Tooltip("Spawn range grows with this game's best item: making level N allows spawns up to N-1, capped here")]
-        public int spawnMaxLevel = 4;
-        [Tooltip("ADD ITEM costs (item level x this) coins: a level 1 item costs 1, a level 3 item costs 3")]
-        public int coinsPerLevel = 1;
         public float hintDelay = 6f;
+        [Tooltip("Seconds added by the 'more time' offer after time runs out")]
+        public int extraSeconds = 30;
+        [Tooltip("Jewels for the 'more time' offer")]
+        public int extraTimeJewels = 5;
 
         [Header("Refs")]
         public Camera cam;
         public MergeHUD hud;
 
-        const string SaveKey = "PotMerge.Board.v3";
+        const string OldSaveKey = "PotMerge.Board.v3"; // endless-mode board save, no longer used
+
+        public enum LevelState { None, Playing, Cleared, Failed }
 
         /// <summary>Raised after every merge with (chain, new level).</summary>
         public event Action<int, int> Merged;
+        /// <summary>Raised when the player leaves a decided level from a result popup (go to the home screen).</summary>
+        public event Action LeaveRequested;
+        /// <summary>Raised when the player wants to play on but has no hearts left.</summary>
+        public event Action NeedHearts;
+        /// <summary>Raised when a box is tapped without enough energy.</summary>
+        public event Action NeedEnergy;
 
         PotItem[,] grid;
-        int bestChain;
-        int bestLevel = 1;
-        bool gameOver;
+        bool gameOver;   // true once the level is decided (cleared or failed): no more input
         float idleTimer;
-        float saveTimer;
 
         PotItem dragging;
         Vector3 dragOffset;
+        Vector2 pressScreen;
+        bool pressMoved;
         Transform itemsRoot;
         ParticleSystem burst;
         float lastAspect = -1f;
         Transform highlight;
         int busyMerges;
+
+        // current level
+        int levelNumber;
+        LevelDatabase.Level level;
+        LevelState state = LevelState.None;
+        float timeLeft;
+        int[] goalProgress = new int[0];
+        bool extended;   // bought extra time: the clear is worth 1 star
+        bool failTimeUp;
 
         int MaxLevel => database != null ? database.MaxLevel : 0;
         int ChainCount => database != null ? Mathf.Min(database.ChainCount, PlayerData.ChainCount) : 0;
@@ -80,9 +103,9 @@ namespace PotMerge
         void Start()
         {
             if (cam == null) cam = Camera.main;
-            if (database == null || ChainCount == 0)
+            if (database == null || ChainCount == 0 || levels == null || levels.Count == 0)
             {
-                Debug.LogError("[PotMerge] MergeBoard has no ChainDatabase assigned.");
+                Debug.LogError("[PotMerge] MergeBoard needs a ChainDatabase and a LevelDatabase.");
                 enabled = false;
                 return;
             }
@@ -94,31 +117,30 @@ namespace PotMerge
 
             if (hud != null)
             {
-                hud.SpawnClicked += TryBuySpawn;
-                hud.RestartClicked += Restart;
-                hud.AdClicked += OnAdClicked;
-                hud.ExchangeClicked += OnExchangeClicked;
+                hud.RetryClicked += GiveUpAndRetry;
+                hud.NextClicked += OnNextClicked;
+                hud.MoreTimeAdClicked += OnMoreTimeAd;
+                hud.MoreTimeJewelClicked += OnMoreTimeJewels;
+                hud.GiveUpHomeClicked += GiveUp;
+                hud.ClearHomeClicked += LeaveAfterClear;
             }
             PlayerData.Changed += OnPlayerDataChanged;
-
-            if (!Load()) NewGame();
-            RefreshState();
+            if (PlayerPrefs.HasKey(OldSaveKey)) { PlayerPrefs.DeleteKey(OldSaveKey); PlayerPrefs.Save(); }
         }
 
         void OnDestroy()
         {
             if (hud != null)
             {
-                hud.SpawnClicked -= TryBuySpawn;
-                hud.RestartClicked -= Restart;
-                hud.AdClicked -= OnAdClicked;
-                hud.ExchangeClicked -= OnExchangeClicked;
+                hud.RetryClicked -= GiveUpAndRetry;
+                hud.NextClicked -= OnNextClicked;
+                hud.MoreTimeAdClicked -= OnMoreTimeAd;
+                hud.MoreTimeJewelClicked -= OnMoreTimeJewels;
+                hud.GiveUpHomeClicked -= GiveUp;
+                hud.ClearHomeClicked -= LeaveAfterClear;
             }
             PlayerData.Changed -= OnPlayerDataChanged;
         }
-
-        void OnApplicationPause(bool paused) { if (paused) Save(); }
-        void OnApplicationQuit() => Save();
 
         void OnPlayerDataChanged()
         {
@@ -127,7 +149,7 @@ namespace PotMerge
 
         bool active = true;
 
-        /// <summary>False while the title/home screen is shown: no camera control, input or hints.</summary>
+        /// <summary>False while the title/home screen is shown: no camera control, input, hints or timer.</summary>
         public bool Active
         {
             get => active;
@@ -140,6 +162,12 @@ namespace PotMerge
         }
 
         public bool IsGameOver => gameOver;
+
+        /// <summary>A level is being played (possibly paused on the home screen).</summary>
+        public bool LevelInProgress => state == LevelState.Playing;
+        public int LevelNumber => levelNumber;
+        public LevelState State => state;
+        public int LevelCount => levels != null ? levels.Count : 0;
 
         /// <summary>True while a popup (settings, ...) covers the game.</summary>
         public bool InputBlocked { get; set; }
@@ -162,36 +190,224 @@ namespace PotMerge
             if (InputBlocked) { CancelDrag(); idleTimer = 0f; }
             else if (!gameOver) HandleInput();
             TickHint();
-
-            saveTimer += Time.deltaTime;
-            if (saveTimer > 5f) { saveTimer = 0f; Save(); }
+            TickTimer();
         }
 
-        void NewGame()
+        // ------------------------------------------------------------------ levels
+        /// <summary>Starts (or restarts) a level from its designed board.</summary>
+        public void StartLevel(int number)
         {
-            PlayerData.EnsureStartCoins();
-            bestChain = 0;
-            bestLevel = 1;
+            if (grid == null || levels == null || levels.Count == 0) return;
+            number = Mathf.Clamp(number, 1, levels.Count);
+            var def = levels.Get(number);
+            if (def == null) return;
+            ClearBoard();
+            levelNumber = number;
+            level = def;
+            state = LevelState.Playing;
             gameOver = false;
-            for (int i = 0; i < startingItems; i++)
+            extended = false;
+            timeLeft = def.seconds;
+            goalProgress = new int[def.goals != null ? def.goals.Length : 0];
+            hud?.HideResults();
+
+            float d = 0f;
+            foreach (var (chain, cell) in LevelDatabase.ParseBoxes(def.boxes))
             {
-                RandomItem(out int chain, out int lv);
-                SpawnRandom(chain, lv, 0.08f * i);
+                if (chain >= ChainCount || boxModels == null || chain >= boxModels.Length || boxModels[chain] == null) continue;
+                if (cell.x < 0 || cell.y < 0 || cell.x >= columns || cell.y >= rows || grid[cell.x, cell.y] != null) continue;
+                var box = CreateItem(chain, 0, cell);
+                box.transform.position = CellToWorld(cell);
+                box.PlaySpawn(d);
+                d += 0.06f;
             }
+            foreach (var (chain, lv, cell) in LevelDatabase.ParseStart(def.startItems))
+            {
+                if (chain >= ChainCount || !database.IsValid(chain, lv)) continue;
+                if (cell.x < 0 || cell.y < 0 || cell.x >= columns || cell.y >= rows || grid[cell.x, cell.y] != null) continue;
+                var p = CreateItem(chain, lv, cell);
+                Vector3 target = CellToWorld(cell);
+                p.transform.position = target + Vector3.up * 2.5f;
+                p.PlaySpawn(d);
+                StartCoroutine(DelayedDrop(p, target, d));
+                PlayerData.ReportItem(chain, lv);
+                d += 0.06f;
+            }
+            hud?.SetLevel(levelNumber);
+            hud?.SetTimer(timeLeft, def.seconds);
+            RefreshGoals();
+            RefreshState();
         }
 
-        public void Restart()
+        void ClearBoard()
         {
             StopAllCoroutines();
             busyMerges = 0;
             dragging = null;
-            highlight.gameObject.SetActive(false);
-            foreach (Transform t in itemsRoot) Destroy(t.gameObject);
+            if (highlight != null) highlight.gameObject.SetActive(false);
+            if (itemsRoot != null) foreach (Transform t in itemsRoot) Destroy(t.gameObject);
             grid = new PotItem[columns, rows];
-            hud?.ShowGameOver(false, "");
-            NewGame();
+        }
+
+        bool Timed => level != null && level.seconds > 0;
+
+        void TickTimer()
+        {
+            if (level == null) return;
+            if (!Timed) { hud?.SetTimer(0f, 0f); return; }
+            if (state == LevelState.Playing && !InputBlocked)
+            {
+                timeLeft = Mathf.Max(0f, timeLeft - Time.deltaTime);
+                if (timeLeft <= 0f && busyMerges == 0) Fail(true);
+            }
+            hud?.SetTimer(timeLeft, level.seconds);
+        }
+
+        void Fail(bool timeUp)
+        {
+            if (state != LevelState.Playing) return;
+            state = LevelState.Failed;
+            gameOver = true;
+            failTimeUp = timeUp;
+            CancelDrag();
+            SoundFx.Error();
+            hud?.ShowLevelFail(levelNumber, timeUp, extraSeconds, extraTimeJewels, PlayerData.AdsLeftToday > 0);
+        }
+
+        void Clear()
+        {
+            if (state != LevelState.Playing) return;
+            state = LevelState.Cleared;
+            gameOver = true;
+            CancelDrag();
+            // untimed (tutorial) levels always give 3 stars
+            float frac = Timed ? timeLeft / level.seconds : 1f;
+            int stars = extended ? 1 : frac >= 0.5f ? 3 : frac >= 0.25f ? 2 : 1;
+            var reward = PlayerData.CompleteLevel(levelNumber, stars);
+            StartCoroutine(ShowClearSoon(stars, reward.coins, reward.jewels));
+        }
+
+        IEnumerator ShowClearSoon(int stars, int coins, int jewels)
+        {
+            yield return new WaitForSeconds(0.7f);
+            SoundFx.Unlock();
+            hud?.ShowLevelClear(levelNumber, stars, coins, jewels, levelNumber < levels.Count);
+        }
+
+        /// <summary>Gives up a failed (or stuck) level: costs a heart.</summary>
+        void LoseLevel()
+        {
+            if (state != LevelState.Failed && state != LevelState.Playing) return;
+            state = LevelState.None;
+            gameOver = false;
+            PlayerData.LoseHeart();
+        }
+
+        void GiveUpAndRetry()
+        {
+            LoseLevel();
+            hud?.HideResults();
+            if (PlayerData.Hearts <= 0) { ClearBoard(); LeaveRequested?.Invoke(); NeedHearts?.Invoke(); return; }
+            StartLevel(levelNumber);
+        }
+
+        void GiveUp()
+        {
+            LoseLevel();
+            hud?.HideResults();
+            ClearBoard();
+            LeaveRequested?.Invoke();
+        }
+
+        void LeaveAfterClear()
+        {
+            state = LevelState.None;
+            hud?.HideResults();
+            ClearBoard();
+            LeaveRequested?.Invoke();
+        }
+
+        void OnNextClicked()
+        {
+            hud?.HideResults();
+            if (levelNumber >= levels.Count) { LeaveAfterClear(); return; }
+            if (PlayerData.Hearts <= 0) { LeaveAfterClear(); NeedHearts?.Invoke(); return; }
+            StartLevel(levelNumber + 1);
+        }
+
+        void Extend()
+        {
+            if (state != LevelState.Failed) return;
+            state = LevelState.Playing;
+            gameOver = false;
+            extended = true;
+            timeLeft += extraSeconds;
+            hud?.HideResults();
+            hud?.ShowToast($"+{extraSeconds} seconds!", new Color(0.6f, 0.9f, 1f));
             RefreshState();
-            Save();
+        }
+
+        void OnMoreTimeAd()
+        {
+            if (state != LevelState.Failed || !failTimeUp) return;
+            if (PlayerData.AdsLeftToday <= 0) { SoundFx.Error(); return; }
+            AdService.ShowRewarded(Extend);
+        }
+
+        void OnMoreTimeJewels()
+        {
+            if (state != LevelState.Failed || !failTimeUp) return;
+            if (!PlayerData.TrySpendJewels(extraTimeJewels))
+            {
+                SoundFx.Error();
+                hud?.ShowToast("Not enough jewels", new Color(1f, 0.6f, 0.5f));
+                return;
+            }
+            SoundFx.Coin();
+            Extend();
+        }
+
+        /// <summary>A new item appeared: merges count for merge goals; any new item (merged or from a box) counts for "make" goals.</summary>
+        void ProgressGoals(int chain, int newLevel, bool fromMerge = true)
+        {
+            if (level?.goals == null) return;
+            for (int i = 0; i < level.goals.Length; i++)
+            {
+                var g = level.goals[i];
+                if (g.chain >= 0 && g.chain != chain) continue;
+                if (g.type == GoalType.MergeAny && fromMerge) goalProgress[i] = Mathf.Min(g.count, goalProgress[i] + 1);
+                else if (g.type == GoalType.MakeItem && newLevel >= g.level) goalProgress[i] = g.count;
+            }
+            RefreshGoals();
+        }
+
+        bool AllGoalsDone()
+        {
+            if (level?.goals == null || level.goals.Length == 0) return false;
+            for (int i = 0; i < level.goals.Length; i++) if (goalProgress[i] < level.goals[i].count) return false;
+            return true;
+        }
+
+        void RefreshGoals()
+        {
+            if (hud == null || level?.goals == null) return;
+            var list = new List<MergeHUD.GoalView>();
+            for (int i = 0; i < level.goals.Length; i++)
+            {
+                var g = level.goals[i];
+                string text;
+                Texture2D icon = null;
+                if (g.type == GoalType.MergeAny)
+                    text = g.chain < 0 ? "Merge" : "Merge " + PlayerData.ChainNames[Mathf.Clamp(g.chain, 0, PlayerData.ChainCount - 1)];
+                else if (g.chain >= 0)
+                {
+                    text = database.LevelName(g.chain, g.level);
+                    icon = database.Icon(g.chain, g.level);
+                }
+                else text = $"Any Lv {g.level}";
+                list.Add(new MergeHUD.GoalView { text = text, icon = icon, progress = goalProgress[i], target = g.count });
+            }
+            hud.SetGoals(list);
         }
 
         // ------------------------------------------------------------------ board building
@@ -246,8 +462,6 @@ namespace PotMerge
             var rend = go.GetComponent<ParticleSystemRenderer>();
             rend.material = new Material(Shader.Find("Sprites/Default"));
         }
-
-        static void SetColor(GameObject go, Color c) => go.GetComponent<Renderer>().material.color = c;
 
         // ------------------------------------------------------------------ coordinates
         Vector3 CellToWorld(Vector2Int c)
@@ -306,6 +520,8 @@ namespace PotMerge
                 var item = PickItem(mouse);
                 if (item != null && ScreenToGround(mouse, out var g))
                 {
+                    pressScreen = mouse;
+                    pressMoved = false;
                     dragging = item;
                     dragOffset = item.transform.position - g;
                     dragOffset.y = 0f;
@@ -317,6 +533,7 @@ namespace PotMerge
             if (dragging != null && Input.GetMouseButton(0))
             {
                 idleTimer = 0f;
+                if ((mouse - pressScreen).sqrMagnitude > tapSlop * tapSlop) pressMoved = true;
                 if (ScreenToGround(mouse, out var g))
                 {
                     Vector3 target = g + dragOffset + Vector3.up * 0.6f;
@@ -330,7 +547,13 @@ namespace PotMerge
                 var item = dragging;
                 dragging = null;
                 highlight.gameObject.SetActive(false);
-                Drop(item);
+                if (item.IsGenerator && !pressMoved)
+                {
+                    item.SetLifted(false);
+                    item.MoveTo(CellToWorld(item.Cell));
+                    TapBox(item);
+                }
+                else Drop(item);
             }
         }
 
@@ -405,7 +628,6 @@ namespace PotMerge
                 SoundFx.Swap();
             }
             RefreshState();
-            Save();
         }
 
         void Place(PotItem item, Vector2Int cell)
@@ -440,95 +662,82 @@ namespace PotMerge
             EmitBurst(pos + Vector3.up * 0.6f, chain);
             SoundFx.Merge(newLevel);
 
-            long reward = fromLevel; // +1 for level-1 merges, +2 for level-2, ...
+            long reward = MergeCoins(fromLevel);
             PlayerData.AddCoins(reward);
             PlayerData.OnMerge(chain, newLevel);
             Merged?.Invoke(chain, newLevel);
-            int spawnMaxBefore = CurrentSpawnMax;
-            hud?.FloatText(pos + Vector3.up * 1.4f, "+" + MergeHUD.Format(reward), new Color(1f, 0.85f, 0.25f), 56f);
+            if (reward > 0)
+                hud?.FloatText(pos + Vector3.up * 1.4f, "+" + MergeHUD.Format(reward), new Color(1f, 0.85f, 0.25f), 56f);
 
-            bool isNew = TrackBest(chain, newLevel);
-            if (CurrentSpawnMax > spawnMaxBefore)
-            {
-                hud?.ShowToast($"ADD ITEM: up to level {CurrentSpawnMax}!", new Color(1f, 0.9f, 0.4f));
-                SoundFx.Unlock();
-            }
-            else if (isNew)
+            if (PlayerData.ReportItem(chain, newLevel))
             {
                 hud?.ShowToast("NEW! " + database.LevelName(chain, newLevel), Color.white);
                 SoundFx.Unlock();
+                EmitBurst(pos + Vector3.up * 1.2f, chain, 90);
             }
-            if (isNew) EmitBurst(pos + Vector3.up * 1.2f, chain, 90);
             busyMerges--;
+            if (state == LevelState.Playing)
+            {
+                ProgressGoals(chain, newLevel);
+                if (AllGoalsDone()) { hud?.SetCoins(Coins, true); Clear(); yield break; }
+            }
             RefreshState(true);
-            Save();
         }
 
-        void TryBuySpawn()
+        /// <summary>Coins for merging two level-N items: level-1 merges give nothing, then N-1 (2 -> +1, 3 -> +2, ...).</summary>
+        public static long MergeCoins(int fromLevel) => Math.Max(0, fromLevel - 1);
+
+        /// <summary>Tapping an item box: costs energy, drops a level 1-3 item of the box's chain next to it.</summary>
+        void TapBox(PotItem box)
         {
             idleTimer = 0f;
-            if (gameOver || busyMerges > 0) return;
-            if (FreeCellCount() == 0)
+            if (gameOver || state != LevelState.Playing) return;
+            if (!NearestEmpty(box.Cell, out var cell))
             {
+                box.PlayShake();
                 hud?.ShowToast("Board full! Make room first", new Color(1f, 0.6f, 0.5f));
                 SoundFx.Error();
                 ShowHint();
                 return;
             }
-            int maxAffordable = AffordableSpawnMax;
-            if (maxAffordable < spawnMinLevel)
+            if (!PlayerData.TrySpendEnergy(energyPerTap))
             {
-                hud?.ShowToast("Not enough coins", new Color(1f, 0.6f, 0.5f));
+                box.PlayShake();
                 SoundFx.Error();
+                NeedEnergy?.Invoke();
                 return;
             }
-            // the item costs its level: roll only levels the player can pay for
-            RandomItem(out int chain, out int lv, maxAffordable);
-            long cost = (long)lv * coinsPerLevel;
-            if (!PlayerData.TrySpend(cost)) return;
-            var item = SpawnRandom(chain, lv, 0f);
+            int lo = Mathf.Clamp(boxMinLevel, 1, MaxLevel), hi = Mathf.Clamp(boxMaxLevel, lo, MaxLevel);
+            int lv = UnityEngine.Random.Range(lo, hi + 1);
+            var item = CreateItem(box.Chain, lv, cell);
+            item.transform.position = box.transform.position + Vector3.up * 1.2f;
+            item.PlaySpawn();
+            item.MoveTo(CellToWorld(cell), 0.28f, item.PlayPunch);
+            box.PlayPunch();
+            SoundFx.Pop();
+            hud?.FloatText(box.transform.position + Vector3.up * 1.8f, "-" + energyPerTap, new Color(0.55f, 0.85f, 1f), 46f);
+            if (PlayerData.ReportItem(box.Chain, lv)) hud?.ShowToast("NEW! " + database.LevelName(box.Chain, lv), Color.white);
             PlayerData.OnAddItem();
-            SoundFx.Coin();
-            if (item != null)
-                hud?.FloatText(CellToWorld(item.Cell) + Vector3.up * 1.6f, "-" + cost, new Color(1f, 0.55f, 0.45f), 52f);
-            hud?.SetCoins(Coins, true);
+            ProgressGoals(box.Chain, lv, false);
+            if (AllGoalsDone()) { Clear(); return; }
             RefreshState();
-            Save();
         }
 
-        void RandomItem(out int chain, out int level, int maxLevel = int.MaxValue)
+        /// <summary>Closest empty cell to <paramref name="from"/> (random among equally close ones).</summary>
+        bool NearestEmpty(Vector2Int from, out Vector2Int cell)
         {
-            chain = UnityEngine.Random.Range(0, ChainCount);
-            int max = Mathf.Min(CurrentSpawnMax, MaxLevel, maxLevel);
-            level = UnityEngine.Random.Range(spawnMinLevel, Mathf.Max(spawnMinLevel, max) + 1);
-        }
-
-        /// <summary>Highest level ADD ITEM may roll right now: spawn range capped by what the coins can pay for.</summary>
-        int AffordableSpawnMax => (int)Math.Min(CurrentSpawnMax, Coins / Math.Max(1, coinsPerLevel));
-
-        /// <summary>
-        /// Grows step by step with this game's best item: levels 1-2 at first,
-        /// 1-3 after making a level 4, 1-4 after making a level 5.
-        /// </summary>
-        int CurrentSpawnMax => Mathf.Clamp(bestLevel - 1, earlySpawnMaxLevel, Mathf.Max(earlySpawnMaxLevel, spawnMaxLevel));
-
-        PotItem SpawnRandom(int chain, int level, float delay)
-        {
-            var empty = new List<Vector2Int>();
+            float best = float.MaxValue;
+            var ties = new List<Vector2Int>();
             for (int x = 0; x < columns; x++)
             for (int y = 0; y < rows; y++)
-                if (grid[x, y] == null) empty.Add(new Vector2Int(x, y));
-            if (empty.Count == 0) return null;
-
-            var cell = empty[UnityEngine.Random.Range(0, empty.Count)];
-            var item = CreateItem(chain, level, cell);
-            Vector3 target = CellToWorld(cell);
-            item.transform.position = target + Vector3.up * 2.5f;
-            item.PlaySpawn(delay);
-            StartCoroutine(DelayedDrop(item, target, delay));
-            if (TrackBest(chain, level) && delay <= 0f)
-                hud?.ShowToast("NEW! " + database.LevelName(chain, level), Color.white);
-            return item;
+            {
+                if (grid[x, y] != null) continue;
+                float d = (new Vector2Int(x, y) - from).sqrMagnitude;
+                if (d < best - 0.01f) { best = d; ties.Clear(); ties.Add(new Vector2Int(x, y)); }
+                else if (Mathf.Abs(d - best) <= 0.01f) ties.Add(new Vector2Int(x, y));
+            }
+            cell = ties.Count > 0 ? ties[UnityEngine.Random.Range(0, ties.Count)] : default;
+            return ties.Count > 0;
         }
 
         IEnumerator DelayedDrop(PotItem item, Vector3 target, float delay)
@@ -541,31 +750,25 @@ namespace PotMerge
             }
         }
 
-        PotItem CreateItem(int chain, int level, Vector2Int cell)
+        PotItem CreateItem(int chain, int lv, Vector2Int cell)
         {
-            var go = new GameObject($"Item_{database.Get(chain).id}_L{level}");
+            bool isBox = lv == 0;
+            var go = new GameObject(isBox ? $"Box_{database.Get(chain).id}" : $"Item_{database.Get(chain).id}_L{lv}");
             go.transform.SetParent(itemsRoot, false);
             var item = go.AddComponent<PotItem>();
 
             var visual = new GameObject("Visual").transform;
             visual.SetParent(go.transform, false);
-            ModelUtil.Spawn(database.Model(chain, level), visual, cellSize * itemFootprint, itemHeight,
-                database.SizeFor(level), turnModelsToCamera);
+            ModelUtil.Spawn(isBox ? boxModels[chain] : database.Model(chain, lv), visual, cellSize * itemFootprint, itemHeight,
+                isBox ? 0.92f : database.SizeFor(lv), turnModelsToCamera);
 
             var col = go.AddComponent<BoxCollider>();
             col.center = new Vector3(0f, 0.5f * itemHeight * 0.6f, 0f);
             col.size = new Vector3(cellSize * 0.85f, itemHeight * 0.6f, cellSize * 0.85f);
 
-            item.Init(chain, level, visual, 1f);
+            item.Init(chain, lv, visual, 1f);
             Place(item, cell);
             return item;
-        }
-
-        /// <summary>Updates the best item of this run and the collection. Returns true for a never-seen item.</summary>
-        bool TrackBest(int chain, int level)
-        {
-            if (level > bestLevel) { bestLevel = level; bestChain = chain; }
-            return PlayerData.ReportItem(chain, level);
         }
 
         void EmitBurst(Vector3 pos, int chain, int count = 45)
@@ -588,7 +791,7 @@ namespace PotMerge
             var seen = new Dictionary<int, PotItem>();
             foreach (var p in grid)
             {
-                if (p == null || p.Level >= MaxLevel) continue;
+                if (p == null || p.IsGenerator || p.Level >= MaxLevel) continue;
                 int key = p.Chain * 100 + p.Level;
                 if (seen.TryGetValue(key, out var other)) { a = other; b = p; return true; }
                 seen[key] = p;
@@ -608,54 +811,9 @@ namespace PotMerge
         {
             if (hud == null) return;
             hud.SetCoins(Coins, punch);
-
-            if (busyMerges > 0) return;
-            bool canMerge = HasAnyMerge(out _, out _);
-            bool full = FreeCellCount() == 0;
-            if (full)
-                hud.SetSpawn("BOARD FULL", "make room first", false);
-            else
-            {
-                bool canPay = AffordableSpawnMax >= spawnMinLevel;
-                hud.SetSpawn("ADD ITEM", canPay ? "" : "not enough coins", canPay);
-            }
-
-            // board full and nothing to merge: real game over
-            bool over = !canMerge && full;
-            if (over && !gameOver)
-            {
-                gameOver = true;
-                SoundFx.Error();
-                hud.ShowGameOver(true, $"Best: {database.LevelName(bestChain, bestLevel)} ({bestLevel}/{MaxLevel})\nCoins: {Coins}");
-                Save();
-            }
-
-            // room left but no merge and no coins: offer coins (rewarded ad or jewels) instead of ending the game
-            bool outOfCoins = !gameOver && !canMerge && !full && AffordableSpawnMax < spawnMinLevel;
-            if (outOfCoins && !hud.OutOfCoinsVisible) SoundFx.Error();
-            hud.ShowOutOfCoins(outOfCoins);
-        }
-
-        void OnAdClicked()
-        {
-            if (PlayerData.AdsLeftToday <= 0) { SoundFx.Error(); return; }
-            AdService.ShowRewarded(() =>
-            {
-                if (PlayerData.RewardAd())
-                {
-                    SoundFx.Coin();
-                    hud?.ShowToast($"+{PlayerData.AdCoins} coins!", new Color(1f, 0.85f, 0.25f));
-                }
-                RefreshState(true);
-            });
-        }
-
-        void OnExchangeClicked()
-        {
-            if (!PlayerData.BuyCoinPack(0)) { SoundFx.Error(); hud?.ShowToast("Not enough jewels", new Color(1f, 0.6f, 0.5f)); return; }
-            SoundFx.Coin();
-            hud?.ShowToast($"+{PlayerData.CoinPacks[0].coins} coins!", new Color(1f, 0.85f, 0.25f));
-            RefreshState(true);
+            if (state != LevelState.Playing || busyMerges > 0) return;
+            // board full and nothing to merge: the level is lost (boxes have nowhere to drop items)
+            if (!HasAnyMerge(out _, out _) && FreeCellCount() == 0) Fail(false);
         }
 
         void TickHint()
@@ -678,66 +836,16 @@ namespace PotMerge
             }
         }
 
-        // ------------------------------------------------------------------ save / load
-        [Serializable]
-        class SaveData
-        {
-            public int[] cells; // chain * 100 + level, 0 = empty
-            public int bestChain;
-            public int bestLevel;
-        }
-
-        void Save()
-        {
-            if (grid == null) return;
-            if (gameOver) { PlayerPrefs.DeleteKey(SaveKey); PlayerPrefs.Save(); return; }
-            var data = new SaveData { cells = new int[columns * rows], bestChain = bestChain, bestLevel = bestLevel };
-            for (int x = 0; x < columns; x++)
-            for (int y = 0; y < rows; y++)
-            {
-                var p = grid[x, y];
-                data.cells[y * columns + x] = p != null ? p.Chain * 100 + p.Level : 0;
-            }
-            PlayerPrefs.SetString(SaveKey, JsonUtility.ToJson(data));
-            PlayerPrefs.Save();
-        }
-
-        bool Load()
-        {
-            if (!PlayerPrefs.HasKey(SaveKey)) return false;
-            var data = JsonUtility.FromJson<SaveData>(PlayerPrefs.GetString(SaveKey));
-            if (data == null || data.cells == null || data.cells.Length != columns * rows) return false;
-            bestChain = Mathf.Clamp(data.bestChain, 0, ChainCount - 1);
-            bestLevel = Mathf.Max(1, data.bestLevel);
-            float d = 0f;
-            int count = 0;
-            for (int x = 0; x < columns; x++)
-            for (int y = 0; y < rows; y++)
-            {
-                int v = data.cells[y * columns + x];
-                int chain = v / 100, lv = v % 100;
-                if (v <= 0 || !database.IsValid(chain, lv) || chain >= ChainCount) continue;
-                var p = CreateItem(chain, lv, new Vector2Int(x, y));
-                p.transform.position = CellToWorld(new Vector2Int(x, y));
-                p.PlaySpawn(d);
-                d += 0.02f;
-                count++;
-            }
-            return count > 0;
-        }
-
-        /// <summary>Settings > reset progress: wipe the board save and start a fresh board.</summary>
+        // ------------------------------------------------------------------ reset
+        /// <summary>Settings > reset progress: drop the level in progress.</summary>
         public void ResetBoard()
         {
-            PlayerPrefs.DeleteKey(SaveKey);
-            if (grid != null) Restart();
-        }
-
-        [ContextMenu("Reset Board Save")]
-        public void ResetSave()
-        {
-            PlayerPrefs.DeleteKey(SaveKey);
-            Debug.Log("[PotMerge] Board save reset.");
+            if (grid == null) return;
+            state = LevelState.None;
+            gameOver = false;
+            level = null;
+            hud?.HideResults();
+            ClearBoard();
         }
     }
 }

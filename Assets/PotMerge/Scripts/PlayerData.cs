@@ -50,6 +50,13 @@ namespace PotMerge
             public int adsToday;
             public List<string> ownedCostumes = new List<string>();
             public string[] equipped = new string[5]; // costume id per CostumeSlot, "" = none
+            public int levelReached = 1;          // highest level the player may play (1-based)
+            public List<int> levelStars = new List<int>(); // best stars per level, index = level - 1
+            public int hearts = MaxHearts;
+            public long heartNextTicks;           // UTC ticks when the next heart comes back (0 = none pending)
+            public int energy = MaxEnergy;        // spent by tapping item boxes on the board
+            public long energyNextTicks;          // UTC ticks when the next energy point comes back
+            public bool energyInit;               // false in saves from before energy existed
         }
 
         static Data data;
@@ -186,6 +193,175 @@ namespace PotMerge
             Commit();
         }
 
+        // ------------------------------------------------------------------ levels
+        public const int StarCoins = 2;            // coins per star, first clear only
+        public const int JewelLevelInterval = 10;  // every 10th level also gives jewels
+        public const int JewelLevelReward = 3;
+
+        public static int LevelReached => Mathf.Max(1, D.levelReached);
+
+        public static int Stars(int level) =>
+            level >= 1 && level <= D.levelStars.Count ? D.levelStars[level - 1] : 0;
+
+        /// <summary>
+        /// Records a cleared level. Rewards are paid only the first time a level is cleared:
+        /// <see cref="StarCoins"/> per star, plus <see cref="JewelLevelReward"/> jewels on every 10th level.
+        /// </summary>
+        public static (int coins, int jewels) CompleteLevel(int level, int stars)
+        {
+            if (level < 1) return (0, 0);
+            while (D.levelStars.Count < level) D.levelStars.Add(0);
+            bool firstClear = level >= D.levelReached;
+            D.levelStars[level - 1] = Mathf.Max(D.levelStars[level - 1], stars);
+            int coins = 0, jewels = 0;
+            if (firstClear)
+            {
+                coins = stars * StarCoins;
+                if (level % JewelLevelInterval == 0) jewels = JewelLevelReward;
+                D.coins += coins;
+                D.jewels += jewels;
+                D.levelReached = level + 1;
+            }
+            Commit();
+            return (coins, jewels);
+        }
+
+        // ------------------------------------------------------------------ hearts (lives)
+        public const int MaxHearts = 5;
+        public const int HeartMinutes = 30;
+        public const int HeartRefillJewels = 10;
+
+        /// <summary>Current hearts, after adding the ones that came back while away.</summary>
+        public static int Hearts { get { RegenHearts(); return D.hearts; } }
+
+        /// <summary>Time until the next heart comes back (zero when full).</summary>
+        public static TimeSpan HeartRemaining
+        {
+            get
+            {
+                RegenHearts();
+                if (D.hearts >= MaxHearts || D.heartNextTicks == 0) return TimeSpan.Zero;
+                return new TimeSpan(Math.Max(0, D.heartNextTicks - DateTime.UtcNow.Ticks));
+            }
+        }
+
+        static void RegenHearts()
+        {
+            if (D.hearts >= MaxHearts) { D.heartNextTicks = 0; return; }
+            long now = DateTime.UtcNow.Ticks;
+            long step = TimeSpan.FromMinutes(HeartMinutes).Ticks;
+            if (D.heartNextTicks == 0) { D.heartNextTicks = now + step; Save(); return; }
+            if (now < D.heartNextTicks) return;
+            int gained = 1 + (int)((now - D.heartNextTicks) / step);
+            D.hearts = Mathf.Min(MaxHearts, D.hearts + gained);
+            D.heartNextTicks = D.hearts >= MaxHearts ? 0 : D.heartNextTicks + gained * step;
+            Commit();
+        }
+
+        /// <summary>A failed level costs one heart.</summary>
+        public static void LoseHeart()
+        {
+            RegenHearts();
+            if (D.hearts <= 0) return;
+            D.hearts--;
+            if (D.heartNextTicks == 0) D.heartNextTicks = DateTime.UtcNow.AddMinutes(HeartMinutes).Ticks;
+            Commit();
+        }
+
+        public static void AddHeart()
+        {
+            RegenHearts();
+            D.hearts = Mathf.Min(MaxHearts, D.hearts + 1);
+            if (D.hearts >= MaxHearts) D.heartNextTicks = 0;
+            Commit();
+        }
+
+        /// <summary>Refills all hearts for <see cref="HeartRefillJewels"/> jewels.</summary>
+        public static bool RefillHeartsWithJewels()
+        {
+            if (D.jewels < HeartRefillJewels) return false;
+            D.jewels -= HeartRefillJewels;
+            D.hearts = MaxHearts;
+            D.heartNextTicks = 0;
+            Commit();
+            return true;
+        }
+
+        // ------------------------------------------------------------------ energy (item boxes)
+        public const int MaxEnergy = 100;
+        public const int EnergyMinutes = 2;        // 1 energy comes back every 2 minutes
+        public const int AdEnergy = 20;
+        public const int EnergyRefillJewels = 10;
+
+        /// <summary>Current energy, after adding what came back while away.</summary>
+        public static int Energy { get { RegenEnergy(); return D.energy; } }
+
+        public static TimeSpan EnergyRemaining
+        {
+            get
+            {
+                RegenEnergy();
+                if (D.energy >= MaxEnergy || D.energyNextTicks == 0) return TimeSpan.Zero;
+                return new TimeSpan(Math.Max(0, D.energyNextTicks - DateTime.UtcNow.Ticks));
+            }
+        }
+
+        static void RegenEnergy()
+        {
+            if (D.energy >= MaxEnergy) { D.energyNextTicks = 0; return; }
+            long now = DateTime.UtcNow.Ticks;
+            long step = TimeSpan.FromMinutes(EnergyMinutes).Ticks;
+            if (D.energyNextTicks == 0) { D.energyNextTicks = now + step; Save(); return; }
+            if (now < D.energyNextTicks) return;
+            int gained = 1 + (int)((now - D.energyNextTicks) / step);
+            D.energy = Mathf.Min(MaxEnergy, D.energy + gained);
+            D.energyNextTicks = D.energy >= MaxEnergy ? 0 : D.energyNextTicks + gained * step;
+            Commit();
+        }
+
+        public static bool TrySpendEnergy(int amount)
+        {
+            RegenEnergy();
+            if (D.energy < amount) return false;
+            D.energy -= amount;
+            if (D.energyNextTicks == 0 && D.energy < MaxEnergy) D.energyNextTicks = DateTime.UtcNow.AddMinutes(EnergyMinutes).Ticks;
+            Commit();
+            return true;
+        }
+
+        /// <summary>Rewarded ad for energy (counts toward the daily ad limit).</summary>
+        public static bool RewardAdEnergy()
+        {
+            if (AdsLeftToday <= 0) return false;
+            string today = DateTime.Now.ToString("yyyyMMdd");
+            if (D.adDate != today) { D.adDate = today; D.adsToday = 0; }
+            D.adsToday++;
+            RegenEnergy();
+            D.energy = Mathf.Min(MaxEnergy, D.energy + AdEnergy);
+            if (D.energy >= MaxEnergy) D.energyNextTicks = 0;
+            Commit();
+            return true;
+        }
+
+        public static bool RefillEnergyWithJewels()
+        {
+            if (D.jewels < EnergyRefillJewels) return false;
+            D.jewels -= EnergyRefillJewels;
+            D.energy = MaxEnergy;
+            D.energyNextTicks = 0;
+            Commit();
+            return true;
+        }
+
+        /// <summary>Pays jewels for extra time in a level.</summary>
+        public static bool TrySpendJewels(long amount)
+        {
+            if (D.jewels < amount) return false;
+            D.jewels -= amount;
+            Commit();
+            return true;
+        }
+
         // ------------------------------------------------------------------ chains / collection
         public static int Best(int chain) => InRange(chain) ? D.best[chain] : 0;
 
@@ -233,7 +409,7 @@ namespace PotMerge
             {
                 case QuestType.MergeAny: return $"Merge {q.target} times";
                 case QuestType.MergeChain: return $"Merge {q.target} {ChainNames[Mathf.Clamp(q.chain, 0, ChainCount - 1)]} items";
-                case QuestType.AddItem: return $"Add {q.target} items";
+                case QuestType.AddItem: return $"Tap item boxes {q.target} times";
                 case QuestType.ReachLevel: return $"Make a level {q.target} item";
             }
             return "?";
@@ -347,6 +523,11 @@ namespace PotMerge
             long maxNext = DateTime.UtcNow.AddHours(LuckyBoxHours).Ticks;
             if (data.luckyBoxNextTicks > maxNext) data.luckyBoxNextTicks = maxNext;
             if (data.equipped == null || data.equipped.Length != 5) Array.Resize(ref data.equipped, 5);
+            if (data.levelStars == null) data.levelStars = new List<int>();
+            if (data.levelReached < 1) data.levelReached = 1;
+            // saves from before hearts existed deserialize hearts as 0: start them full
+            if (data.hearts <= 0 && data.heartNextTicks == 0) data.hearts = MaxHearts;
+            if (!data.energyInit) { data.energy = MaxEnergy; data.energyNextTicks = 0; data.energyInit = true; }
         }
 
 #if UNITY_EDITOR

@@ -6,32 +6,37 @@ using static PotMerge.UIKit;
 
 namespace PotMerge
 {
-    /// <summary>Runtime-built UI Toolkit HUD for the game screen: coins, home/settings, spawn button, toasts and floating texts.</summary>
+    /// <summary>Runtime-built UI Toolkit HUD for the game screen: coins/jewels/energy, home/settings, level goals and timer, result cards, toasts and floating texts.</summary>
     [RequireComponent(typeof(UIDocument))]
     public class MergeHUD : MonoBehaviour
     {
-        public event Action SpawnClicked;
-        public event Action RestartClicked;
         public event Action HomeClicked;
         public event Action SettingsClicked;
-        public event Action AdClicked;
-        public event Action ExchangeClicked;
+        public event Action EnergyClicked;
+        public event Action RetryClicked;
+        public event Action NextClicked;
+        public event Action MoreTimeAdClicked;
+        public event Action MoreTimeJewelClicked;
+        public event Action GiveUpHomeClicked;
+        public event Action ClearHomeClicked;
+
+        public struct GoalView { public string text; public Texture2D icon; public int progress; public int target; }
+
+        // level widgets
+        Label levelLabel;
+        Label timerLabel;
+        VisualElement timerPill;
+        VisualElement goalCard;
+        VisualElement resultPanel;
+        int lastShownSecond = -1;
 
         VisualElement root;
         VisualElement fxLayer;
         Label coinLabel;
         Label jewelLabel;
-        VisualElement outOfCoinsPanel;
-        Button adButton;
-        Label adLabel;
-        Button exchangeButton;
-        Label exchangeLabel;
-        Button spawnButton;
-        Label spawnTitle;
-        Label spawnCost;
+        Label energyLabel;
+        float energyTick;
         Label toast;
-        VisualElement gameOverPanel;
-        Label gameOverInfo;
         float toastTimer;
         float coinPunch;
 
@@ -66,6 +71,9 @@ namespace PotMerge
             jewelPill.style.marginLeft = 16;
             jewelPill.style.minWidth = 150;
             coinPill.Add(jewelPill);
+            var energyPill = EnergyPill(out energyLabel, () => EnergyClicked?.Invoke());
+            energyPill.style.marginLeft = 16;
+            coinPill.Add(energyPill);
 
             var buttons = new VisualElement { pickingMode = PickingMode.Ignore };
             buttons.style.flexDirection = FlexDirection.Row;
@@ -86,90 +94,56 @@ namespace PotMerge
             toast.style.unityTextOutlineColor = new Color(0.15f, 0.1f, 0.05f);
             toast.style.opacity = 0;
 
-            // ---------- bottom spawn button ----------
+            // ---------- bottom hint: boxes cost energy ----------
             var bottom = new VisualElement { pickingMode = PickingMode.Ignore };
             bottom.style.alignItems = Align.Center;
-            bottom.style.paddingBottom = 120;
+            bottom.style.paddingBottom = 110;
+            var hint = Pill();
+            hint.style.backgroundColor = new Color(1f, 0.98f, 0.93f, 0.85f);
+            hint.Add(MakeLabel("TAP A BOX FOR ITEMS", 34, InkSoft));
+            var bolt = Icon(IconShape.Bolt, 40, EnergyColor);
+            bolt.style.marginLeft = 16;
+            hint.Add(bolt);
+            hint.Add(MakeLabel("1", 34, InkSoft));
+            bottom.Add(hint);
 
-            spawnButton = BigButton("", 440, 140, 50, Green, GreenDark, () => SpawnClicked?.Invoke());
-            spawnTitle = MakeLabel("ADD ITEM", 54, Color.white);
-            spawnCost = MakeLabel("", 30, new Color(1f, 0.95f, 0.7f));
-            spawnButton.Add(spawnTitle);
-            spawnButton.Add(spawnCost);
-            bottom.Add(spawnButton);
+            // ---------- level: goals (left), level + timer (right) ----------
+            goalCard = new VisualElement { pickingMode = PickingMode.Ignore };
+            goalCard.style.position = Position.Absolute;
+            goalCard.style.left = 30; goalCard.style.top = 210;
+            goalCard.style.width = 290;
+            goalCard.style.backgroundColor = new Color(1f, 0.98f, 0.93f, 0.92f);
+            Round(goalCard, 44);
+            goalCard.style.borderBottomWidth = 8; goalCard.style.borderBottomColor = CreamShadow;
+            goalCard.style.paddingTop = 18; goalCard.style.paddingBottom = 18; goalCard.style.paddingLeft = 22; goalCard.style.paddingRight = 18;
 
-            // ---------- game over overlay ----------
-            gameOverPanel = new VisualElement();
-            Stretch(gameOverPanel);
-            gameOverPanel.style.backgroundColor = Dim;
-            gameOverPanel.style.alignItems = Align.Center;
-            gameOverPanel.style.justifyContent = Justify.Center;
-            gameOverPanel.style.display = DisplayStyle.None;
-            var card = Card(60);
-            card.style.paddingTop = 70; card.style.paddingBottom = 70; card.style.paddingLeft = 80; card.style.paddingRight = 80;
-            card.style.alignItems = Align.Center;
-            card.style.width = 860;
-            var title = MakeLabel("NO MORE MOVES", 72, Ink);
-            title.style.marginBottom = 30;
-            gameOverInfo = MakeLabel("", 42, Ink);
-            gameOverInfo.style.unityTextAlign = TextAnchor.MiddleCenter;
-            gameOverInfo.style.marginBottom = 50;
-            gameOverInfo.style.whiteSpace = WhiteSpace.Normal;
-            var row = new VisualElement();
-            row.style.flexDirection = FlexDirection.Row;
-            var homeBtn = BigButton("HOME", 300, 140, 50, Pink, PinkDark, () => HomeClicked?.Invoke());
-            homeBtn.style.marginRight = 30;
-            row.Add(homeBtn);
-            row.Add(BigButton("RESTART", 360, 140, 50, Green, GreenDark, () => RestartClicked?.Invoke()));
-            card.Add(title);
-            card.Add(gameOverInfo);
-            card.Add(row);
-            gameOverPanel.Add(card);
+            var rightCol = new VisualElement { pickingMode = PickingMode.Ignore };
+            rightCol.style.position = Position.Absolute;
+            rightCol.style.right = 30; rightCol.style.top = 210;
+            rightCol.style.width = 260;
+            rightCol.style.alignItems = Align.Center;
+            levelLabel = MakeLabel("LEVEL 1", 44, Color.white);
+            levelLabel.style.unityTextOutlineWidth = 3f;
+            levelLabel.style.unityTextOutlineColor = new Color(0.35f, 0.22f, 0.15f);
+            levelLabel.style.marginBottom = 10;
+            rightCol.Add(levelLabel);
+            timerPill = Pill();
+            timerPill.style.justifyContent = Justify.Center;
+            timerPill.style.minWidth = 230;
+            timerPill.style.paddingRight = 28;
+            timerPill.Add(ClockIcon(50));
+            timerLabel = MakeLabel("0:00", 50, Ink);
+            timerLabel.style.marginLeft = 12;
+            timerPill.Add(timerLabel);
+            rightCol.Add(timerPill);
 
-            // ---------- out of coins (no merge left, can't pay for ADD ITEM) ----------
-            outOfCoinsPanel = new VisualElement();
-            Stretch(outOfCoinsPanel);
-            outOfCoinsPanel.style.backgroundColor = Dim;
-            outOfCoinsPanel.style.alignItems = Align.Center;
-            outOfCoinsPanel.style.justifyContent = Justify.Center;
-            outOfCoinsPanel.style.display = DisplayStyle.None;
-            var oc = Card(80);
-            oc.style.width = 860;
-            oc.style.paddingTop = 60; oc.style.paddingBottom = 60; oc.style.paddingLeft = 60; oc.style.paddingRight = 60;
-            oc.style.alignItems = Align.Center;
-            oc.Add(MakeLabel("OUT OF COINS", 68, Ink));
-            var ocInfo = MakeLabel("No merges left. Get coins to keep going!", 36, InkSoft);
-            ocInfo.style.whiteSpace = WhiteSpace.Normal;
-            ocInfo.style.unityTextAlign = TextAnchor.MiddleCenter;
-            ocInfo.style.marginTop = 16; ocInfo.style.marginBottom = 40;
-            oc.Add(ocInfo);
-
-            adButton = BigButton("", 700, 130, 40, new Color(0.40f, 0.70f, 0.95f), new Color(0.25f, 0.50f, 0.78f), () => AdClicked?.Invoke());
-            var adRow = Row();
-            adRow.Add(Icon(IconShape.Play, 46, Color.white));
-            adLabel = MakeLabel("", 40, Color.white);
-            adLabel.style.marginLeft = 14;
-            adRow.Add(adLabel);
-            adButton.Add(adRow);
-            oc.Add(adButton);
-
-            exchangeButton = BigButton("", 700, 130, 40, JewelColor, Color.Lerp(JewelColor, Color.black, 0.3f), () => ExchangeClicked?.Invoke());
-            exchangeButton.style.marginTop = 24;
-            var exRow = Row();
-            exRow.Add(JewelIcon(50));
-            exchangeLabel = MakeLabel("", 40, Color.white);
-            exRow.Add(exchangeLabel);
-            exchangeButton.Add(exRow);
-            oc.Add(exchangeButton);
-
-            var ocBottom = Row();
-            ocBottom.style.marginTop = 36;
-            var ocHome = BigButton("HOME", 330, 120, 44, Pink, PinkDark, () => HomeClicked?.Invoke());
-            ocHome.style.marginRight = 30;
-            ocBottom.Add(ocHome);
-            ocBottom.Add(BigButton("RESTART", 330, 120, 44, Green, GreenDark, () => RestartClicked?.Invoke()));
-            oc.Add(ocBottom);
-            outOfCoinsPanel.Add(oc);
+            // ---------- level result (clear / fail) ----------
+            resultPanel = new VisualElement();
+            Stretch(resultPanel);
+            resultPanel.style.backgroundColor = Dim;
+            resultPanel.style.alignItems = Align.Center;
+            resultPanel.style.justifyContent = Justify.Center;
+            resultPanel.style.display = DisplayStyle.None;
 
             // ---------- shop owner at the top center ----------
             ownerPortrait = new VisualElement { pickingMode = PickingMode.Ignore };
@@ -182,11 +156,208 @@ namespace PotMerge
 
             root.Add(ownerPortrait);
             root.Add(top);
+            root.Add(goalCard);
+            root.Add(rightCol);
             root.Add(bottom);
             root.Add(fxLayer);
             root.Add(toast);
-            root.Add(outOfCoinsPanel);
-            root.Add(gameOverPanel);
+            root.Add(resultPanel);
+        }
+
+        static VisualElement ClockIcon(float size)
+        {
+            var v = new VisualElement { pickingMode = PickingMode.Ignore };
+            v.style.width = size; v.style.height = size;
+            v.style.flexShrink = 0;
+            v.generateVisualContent += ctx =>
+            {
+                var p = ctx.painter2D;
+                var c = new Vector2(size * 0.5f, size * 0.5f);
+                p.fillColor = new Color(0.40f, 0.70f, 0.95f);
+                p.BeginPath(); p.Arc(c, size * 0.47f, 0f, 360f); p.Fill();
+                p.fillColor = Color.white;
+                p.BeginPath(); p.Arc(c, size * 0.35f, 0f, 360f); p.Fill();
+                p.strokeColor = Ink; p.lineWidth = size * 0.09f; p.lineCap = LineCap.Round;
+                p.BeginPath(); p.MoveTo(c); p.LineTo(c + new Vector2(0f, -size * 0.24f)); p.Stroke();
+                p.BeginPath(); p.MoveTo(c); p.LineTo(c + new Vector2(size * 0.17f, size * 0.06f)); p.Stroke();
+            };
+            return v;
+        }
+
+        // ---------------- level API ----------------
+        public void SetLevel(int number) => levelLabel.text = "LEVEL " + number;
+
+        /// <summary>Shows the level timer; total &lt;= 0 means the level has no time limit and hides it.</summary>
+        public void SetTimer(float secondsLeft, float total)
+        {
+            bool timed = total > 0f;
+            timerPill.style.display = timed ? DisplayStyle.Flex : DisplayStyle.None;
+            if (!timed) { lastShownSecond = -1; return; }
+            int s = Mathf.CeilToInt(secondsLeft);
+            if (s == lastShownSecond) return;
+            lastShownSecond = s;
+            timerLabel.text = $"{s / 60}:{s % 60:00}";
+            bool warn = s <= 10;
+            timerLabel.style.color = warn ? new Color(0.90f, 0.25f, 0.25f) : Ink;
+            if (warn && s > 0) { timerPill.style.scale = new Scale(new Vector3(1.12f, 1.12f, 1f)); timerPulse = 1f; }
+        }
+
+        float timerPulse;
+
+        public void SetGoals(List<GoalView> goals)
+        {
+            goalCard.Clear();
+            var head = MakeLabel("GOALS", 28, InkSoft);
+            head.style.marginBottom = 6;
+            goalCard.Add(head);
+            foreach (var g in goals)
+            {
+                bool done = g.progress >= g.target;
+                var row = new VisualElement { pickingMode = PickingMode.Ignore };
+                row.style.flexDirection = FlexDirection.Row;
+                row.style.alignItems = Align.Center;
+                row.style.marginTop = 8;
+                if (g.icon != null)
+                {
+                    var img = new VisualElement { pickingMode = PickingMode.Ignore };
+                    img.style.width = 64; img.style.height = 64; img.style.flexShrink = 0;
+                    img.style.backgroundImage = new StyleBackground(g.icon);
+                    row.Add(img);
+                }
+                else row.Add(Icon(IconShape.Star, 52, Gold));
+                var col = new VisualElement { pickingMode = PickingMode.Ignore };
+                col.style.marginLeft = 10;
+                col.style.flexShrink = 1;
+                var t = MakeLabel(g.text, 26, done ? InkSoft : Ink);
+                t.style.whiteSpace = WhiteSpace.Normal;
+                col.Add(t);
+                var count = MakeLabel(done ? "DONE" : $"{g.progress}/{g.target}", 30, done ? Green : PinkDark);
+                col.Add(count);
+                row.Add(col);
+                if (done)
+                {
+                    var check = Icon(IconShape.Check, 40, Green);
+                    check.style.marginLeft = 6;
+                    row.Add(check);
+                }
+                goalCard.Add(row);
+            }
+        }
+
+        public void HideResults()
+        {
+            if (resultPanel == null) return;
+            resultPanel.Clear();
+            resultPanel.style.display = DisplayStyle.None;
+        }
+
+        public bool ResultVisible => resultPanel != null && resultPanel.style.display == DisplayStyle.Flex;
+
+        VisualElement ResultCard(string title, Color titleColor)
+        {
+            resultPanel.Clear();
+            resultPanel.style.display = DisplayStyle.Flex;
+            var card = Card(80);
+            card.style.width = 880;
+            card.style.paddingTop = 60; card.style.paddingBottom = 60; card.style.paddingLeft = 60; card.style.paddingRight = 60;
+            card.style.alignItems = Align.Center;
+            card.Add(MakeLabel(title, 76, titleColor));
+            resultPanel.Add(card);
+            return card;
+        }
+
+        public void ShowLevelClear(int number, int stars, int coins, int jewels, bool hasNext)
+        {
+            var card = ResultCard($"LEVEL {number} CLEAR!", Green);
+            var starRow = Row();
+            starRow.style.marginTop = 20; starRow.style.marginBottom = 20;
+            for (int i = 0; i < 3; i++)
+            {
+                var st = Icon(IconShape.Star, i == 1 ? 170 : 140, i < stars ? Gold : new Color(0.85f, 0.80f, 0.72f));
+                st.style.marginLeft = 10; st.style.marginRight = 10;
+                if (i != 1) st.style.marginTop = 30;
+                starRow.Add(st);
+            }
+            card.Add(starRow);
+
+            if (coins > 0 || jewels > 0)
+            {
+                var rew = Row();
+                rew.style.marginBottom = 36;
+                if (coins > 0) { rew.Add(CoinIcon(60, 12)); rew.Add(MakeLabel("+" + coins, 60, Ink)); }
+                if (jewels > 0)
+                {
+                    var j = JewelIcon(62, 10); j.style.marginLeft = coins > 0 ? 40 : 0;
+                    rew.Add(j); rew.Add(MakeLabel("+" + jewels, 60, JewelColor));
+                }
+                card.Add(rew);
+            }
+            else
+            {
+                var note = MakeLabel("Rewards are for the first clear", 32, InkSoft);
+                note.style.marginBottom = 36;
+                card.Add(note);
+            }
+
+            var btns = Row();
+            var home = BigButton("HOME", 300, 140, 50, Pink, PinkDark, () => ClearHomeClicked?.Invoke());
+            btns.Add(home);
+            if (hasNext)
+            {
+                home.style.marginRight = 30;
+                btns.Add(BigButton("NEXT", 400, 140, 56, Green, GreenDark, () => NextClicked?.Invoke()));
+            }
+            card.Add(btns);
+            if (!hasNext)
+            {
+                var soon = MakeLabel("More levels coming soon!", 32, InkSoft);
+                soon.style.marginTop = 24;
+                card.Add(soon);
+            }
+        }
+
+        public void ShowLevelFail(int number, bool timeUp, int extraSeconds, int jewelCost, bool adAvailable)
+        {
+            var card = ResultCard(timeUp ? "TIME'S UP!" : "NO MORE MOVES", PinkDark);
+            var info = MakeLabel(timeUp ? $"Keep playing level {number} with +{extraSeconds} seconds?" : "The board is full and nothing can merge.", 36, InkSoft);
+            info.style.whiteSpace = WhiteSpace.Normal;
+            info.style.unityTextAlign = TextAnchor.MiddleCenter;
+            info.style.marginTop = 16; info.style.marginBottom = 36;
+            card.Add(info);
+
+            if (timeUp)
+            {
+                var ad = BigButton("", 720, 130, 40, adAvailable ? new Color(0.40f, 0.70f, 0.95f) : Disabled,
+                    adAvailable ? new Color(0.25f, 0.50f, 0.78f) : DisabledDark, () => MoreTimeAdClicked?.Invoke());
+                var adRow = Row();
+                adRow.Add(Icon(IconShape.Play, 46, Color.white));
+                var adText = MakeLabel(adAvailable ? $"WATCH AD  +{extraSeconds}s" : "NO ADS LEFT TODAY", 40, Color.white);
+                adText.style.marginLeft = 14;
+                adRow.Add(adText);
+                ad.Add(adRow);
+                card.Add(ad);
+
+                bool canPay = PlayerData.Jewels >= jewelCost;
+                var jw = BigButton("", 720, 130, 40, canPay ? JewelColor : Disabled,
+                    canPay ? Color.Lerp(JewelColor, Color.black, 0.3f) : DisabledDark, () => MoreTimeJewelClicked?.Invoke());
+                jw.style.marginTop = 24;
+                var jwRow = Row();
+                jwRow.Add(JewelIcon(50));
+                jwRow.Add(MakeLabel($"{jewelCost}  =  +{extraSeconds}s", 40, Color.white));
+                jw.Add(jwRow);
+                card.Add(jw);
+            }
+
+            var heartNote = MakeLabel("Giving up costs 1 heart", 30, InkSoft);
+            heartNote.style.marginTop = 36;
+            card.Add(heartNote);
+            var btns = Row();
+            btns.style.marginTop = 18;
+            var home = BigButton("HOME", 330, 130, 46, Pink, PinkDark, () => GiveUpHomeClicked?.Invoke());
+            home.style.marginRight = 30;
+            btns.Add(home);
+            btns.Add(BigButton("RETRY", 330, 130, 46, Green, GreenDark, () => RetryClicked?.Invoke()));
+            card.Add(btns);
         }
 
         // ---------------- public API ----------------
@@ -209,24 +380,9 @@ namespace PotMerge
         {
             coinLabel.text = Format(coins);
             jewelLabel.text = Format(PlayerData.Jewels);
+            energyLabel.text = PlayerData.Energy.ToString();
             if (punch) coinPunch = 1f;
         }
-
-        /// <summary>Shows/hides the "out of coins" offer: rewarded ad for coins, or jewels for coins.</summary>
-        public void ShowOutOfCoins(bool show)
-        {
-            outOfCoinsPanel.style.display = show ? DisplayStyle.Flex : DisplayStyle.None;
-            if (!show) return;
-            int adsLeft = PlayerData.AdsLeftToday;
-            adLabel.text = adsLeft > 0 ? $"WATCH AD  +{PlayerData.AdCoins} coins ({adsLeft} left)" : "NO ADS LEFT TODAY";
-            SetButtonColors(adButton, adsLeft > 0 ? new Color(0.40f, 0.70f, 0.95f) : Disabled, adsLeft > 0 ? new Color(0.25f, 0.50f, 0.78f) : DisabledDark);
-            var pack = PlayerData.CoinPacks[0];
-            bool canPay = PlayerData.Jewels >= pack.jewels;
-            exchangeLabel.text = $"{pack.jewels}  =  {pack.coins} coins";
-            SetButtonColors(exchangeButton, canPay ? JewelColor : Disabled, canPay ? Color.Lerp(JewelColor, Color.black, 0.3f) : DisabledDark);
-        }
-
-        public bool OutOfCoinsVisible => outOfCoinsPanel != null && outOfCoinsPanel.style.display == DisplayStyle.Flex;
 
         static VisualElement Row()
         {
@@ -235,20 +391,6 @@ namespace PotMerge
             r.style.alignItems = Align.Center;
             r.style.justifyContent = Justify.Center;
             return r;
-        }
-
-        public void SetSpawn(string title, string subtitle, bool enabled)
-        {
-            SetButtonColors(spawnButton, enabled ? Green : Disabled, enabled ? GreenDark : DisabledDark);
-            spawnTitle.text = title;
-            spawnCost.text = subtitle;
-            Show(spawnCost, !string.IsNullOrEmpty(subtitle));
-        }
-
-        public void ShowGameOver(bool show, string info)
-        {
-            gameOverInfo.text = info;
-            gameOverPanel.style.display = show ? DisplayStyle.Flex : DisplayStyle.None;
         }
 
         public void ShowToast(string text, Color color)
@@ -292,6 +434,16 @@ namespace PotMerge
                 toast.style.opacity = Mathf.Min(a, intro);
                 float s = 1f + 0.25f * (1f - intro);
                 toast.style.scale = new Scale(new Vector3(s, s, 1f));
+            }
+
+            energyTick += Time.unscaledDeltaTime;
+            if (energyTick >= 1f) { energyTick = 0f; energyLabel.text = PlayerData.Energy.ToString(); }
+
+            if (timerPulse > 0f)
+            {
+                timerPulse = Mathf.Max(0f, timerPulse - Time.unscaledDeltaTime * 4f);
+                float s = 1f + 0.12f * timerPulse;
+                timerPill.style.scale = new Scale(new Vector3(s, s, 1f));
             }
 
             if (coinPunch > 0f)

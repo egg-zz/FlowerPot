@@ -4,7 +4,7 @@ using UnityEngine.UIElements;
 
 namespace PotMerge
 {
-    public enum IconShape { Home, Gear, Book, Bag, Close, Check, Star, Gem, Gift, Play }
+    public enum IconShape { Home, Gear, Book, Bag, Close, Check, Star, Gem, Gift, Play, Heart, Bolt }
 
     /// <summary>Shared look for all runtime-built UI Toolkit screens (reference resolution 1080x1920).</summary>
     public static class UIKit
@@ -268,6 +268,36 @@ namespace PotMerge
                         p.BeginPath(); p.Arc(new Vector2(s * 0.64f, s * 0.2f), s * 0.11f, 0f, 360f); p.Fill();
                         break;
                     }
+                    case IconShape.Heart:
+                    {
+                        // two round lobes + a point
+                        p.BeginPath();
+                        p.MoveTo(new Vector2(s * 0.5f, s * 0.92f));
+                        p.BezierCurveTo(new Vector2(s * 0.08f, s * 0.62f), new Vector2(s * -0.02f, s * 0.30f), new Vector2(s * 0.24f, s * 0.14f));
+                        p.BezierCurveTo(new Vector2(s * 0.38f, s * 0.06f), new Vector2(s * 0.48f, s * 0.16f), new Vector2(s * 0.5f, s * 0.26f));
+                        p.BezierCurveTo(new Vector2(s * 0.52f, s * 0.16f), new Vector2(s * 0.62f, s * 0.06f), new Vector2(s * 0.76f, s * 0.14f));
+                        p.BezierCurveTo(new Vector2(s * 1.02f, s * 0.30f), new Vector2(s * 0.92f, s * 0.62f), new Vector2(s * 0.5f, s * 0.92f));
+                        p.ClosePath();
+                        p.Fill();
+                        p.fillColor = new Color(1f, 1f, 1f, 0.8f);
+                        p.BeginPath(); p.Arc(new Vector2(s * 0.28f, s * 0.32f), s * 0.07f, 0f, 360f); p.Fill();
+                        break;
+                    }
+                    case IconShape.Bolt:
+                    {
+                        p.lineWidth = s * 0.06f;
+                        p.BeginPath();
+                        p.MoveTo(new Vector2(s * 0.62f, s * 0.04f));
+                        p.LineTo(new Vector2(s * 0.18f, s * 0.56f));
+                        p.LineTo(new Vector2(s * 0.46f, s * 0.56f));
+                        p.LineTo(new Vector2(s * 0.36f, s * 0.96f));
+                        p.LineTo(new Vector2(s * 0.84f, s * 0.40f));
+                        p.LineTo(new Vector2(s * 0.55f, s * 0.40f));
+                        p.ClosePath();
+                        p.Fill();
+                        p.Stroke();
+                        break;
+                    }
                     case IconShape.Play:
                         p.BeginPath();
                         p.MoveTo(new Vector2(s * 0.26f, s * 0.14f));
@@ -342,6 +372,31 @@ namespace PotMerge
             var v = Icon(IconShape.Gem, size, JewelColor);
             v.style.marginRight = marginRight;
             return v;
+        }
+
+        public static readonly Color EnergyColor = new Color(1f, 0.70f, 0.15f);
+
+        /// <summary>Tappable cream pill with a lightning bolt and the energy amount.</summary>
+        public static Button EnergyPill(out Label amount, Action onClick)
+        {
+            var b = new Button(() => { SoundFx.Tap(); onClick?.Invoke(); }) { text = "" };
+            b.style.flexDirection = FlexDirection.Row;
+            b.style.alignItems = Align.Center;
+            b.style.backgroundColor = Cream;
+            Border(b, 0, Color.clear);
+            b.style.borderBottomWidth = 8;
+            b.style.borderBottomColor = CreamShadow;
+            Round(b, 50);
+            b.style.paddingLeft = 18; b.style.paddingRight = 30; b.style.paddingTop = 14; b.style.paddingBottom = 14;
+            b.style.marginLeft = 0; b.style.marginRight = 0; b.style.marginTop = 0; b.style.marginBottom = 0;
+            b.style.minWidth = 160;
+            var bolt = Icon(IconShape.Bolt, 52, EnergyColor);
+            bolt.style.marginRight = 8;
+            b.Add(bolt);
+            amount = MakeLabel("100", 46, Ink);
+            b.Add(amount);
+            AddPress(b);
+            return b;
         }
 
         /// <summary>Cream pill with a coin or jewel icon and an amount label.</summary>

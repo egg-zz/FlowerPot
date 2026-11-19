@@ -8,8 +8,11 @@ namespace PotMerge
     {
         public int Chain { get; private set; }
         public int Level { get; private set; }
-        /// <summary>Items merge only when chain and level are both equal.</summary>
-        public bool Matches(PotItem other) => other != null && other != this && other.Chain == Chain && other.Level == Level;
+        /// <summary>An item box: tap it (costs energy) to get items of its chain. It never merges.</summary>
+        public bool IsGenerator => Level == 0;
+        /// <summary>Items merge only when chain and level are both equal (item boxes never merge).</summary>
+        public bool Matches(PotItem other) =>
+            other != null && other != this && !IsGenerator && !other.IsGenerator && other.Chain == Chain && other.Level == Level;
         public Vector2Int Cell { get; set; }
         public bool IsDragging { get; set; }
 

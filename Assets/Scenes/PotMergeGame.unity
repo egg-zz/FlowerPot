@@ -368,6 +368,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PotMerge.MergeBoard
   database: {fileID: 11400000, guid: c0644365ffe7b564ba5201ee08144e46, type: 2}
+  levels: {fileID: 11400000, guid: f7b349113d494174c99052effda33d02, type: 2}
   itemFootprint: 0.95
   itemHeight: 2.5
   turnModelsToCamera: 1
@@ -378,12 +379,18 @@ MonoBehaviour:
   tileA: {r: 0.47, g: 0.7, b: 0.3, a: 1}
   tileB: {r: 0.4, g: 0.62, b: 0.25, a: 1}
   boardColor: {r: 0.45, g: 0.29, b: 0.18, a: 1}
-  startingItems: 7
-  spawnMinLevel: 1
-  earlySpawnMaxLevel: 2
-  spawnMaxLevel: 4
-  coinsPerLevel: 1
+  boxModels:
+  - {fileID: 919132149155446097, guid: 345638640cc14ab409b715f61c0ba7c4, type: 3}
+  - {fileID: 919132149155446097, guid: dcd5699168ca27742880dfe811020516, type: 3}
+  - {fileID: 919132149155446097, guid: c7233cd7d3cf34d45916e966b3231d24, type: 3}
+  - {fileID: 919132149155446097, guid: a6eb464639cdf414db5c81549c67280f, type: 3}
+  boxMinLevel: 1
+  boxMaxLevel: 3
+  energyPerTap: 1
+  tapSlop: 18
   hintDelay: 6
+  extraSeconds: 30
+  extraTimeJewels: 5
   cam: {fileID: 767847129}
   hud: {fileID: 2141879631}
 --- !u!4 &745008900

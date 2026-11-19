@@ -33,6 +33,13 @@ namespace PotMerge
                 menu.TitleTapped += ShowHome;
                 menu.StartClicked += StartGame;
             }
+            if (board != null)
+            {
+                board.LeaveRequested += ShowHome;
+                board.NeedHearts += OpenHearts;
+                board.NeedEnergy += OpenEnergy;
+            }
+            if (hud != null) hud.EnergyClicked += OpenEnergy;
             ShowTitle();
         }
 
@@ -48,7 +55,17 @@ namespace PotMerge
                 menu.TitleTapped -= ShowHome;
                 menu.StartClicked -= StartGame;
             }
+            if (board != null)
+            {
+                board.LeaveRequested -= ShowHome;
+                board.NeedHearts -= OpenHearts;
+                board.NeedEnergy -= OpenEnergy;
+            }
+            if (hud != null) hud.EnergyClicked -= OpenEnergy;
         }
+
+        void OpenHearts() => menu?.OpenHearts();
+        void OpenEnergy() => menu?.OpenEnergy();
 
         void Update()
         {
@@ -69,17 +86,18 @@ namespace PotMerge
             menu?.ShowHome();
         }
 
+        /// <summary>GAME START: resume the level in progress, or start the next level (needs a heart).</summary>
         public void StartGame()
         {
+            if (board == null) return;
+            bool resume = board.LevelInProgress;
+            if (!resume && PlayerData.Hearts <= 0) { OpenHearts(); return; }
             Current = State.Game;
             menu?.HideScreens();
             backdrop?.Hide();
             hud?.SetVisible(true);
-            if (board != null)
-            {
-                if (board.IsGameOver) board.Restart();
-                board.Active = true;
-            }
+            board.Active = true;
+            if (!resume) board.StartLevel(Mathf.Min(PlayerData.LevelReached, board.LevelCount));
         }
 
         void EnterMenu(bool home)
