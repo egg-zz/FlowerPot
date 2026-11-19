@@ -21,13 +21,41 @@ MonoBehaviour:
     price: 30
     model: {fileID: 919132149155446097, guid: 4a93c12b4d54baa4c9c5522c21fb5eae, type: 3}
     icon: {fileID: 2800000, guid: 98be75b3f22607d4fba1dbeabdb60295, type: 3}
-  - id: flower_apron
-    displayName: Flower Apron
-    slot: 3
+  - id: sprout_pin
+    displayName: Sprout Pin
+    slot: 0
+    currency: 0
+    price: 30
+    model: {fileID: 919132149155446097, guid: f6e06c26de2e4ce45a226022af496a34, type: 3}
+    icon: {fileID: 2800000, guid: 82b20d31acd538e46ad1a881c9004d1a, type: 3}
+  - id: barista_beret
+    displayName: Barista Beret
+    slot: 0
+    currency: 0
+    price: 35
+    model: {fileID: 919132149155446097, guid: 4bfdac1adbf5a7f40b9e68c6ce8e245a, type: 3}
+    icon: {fileID: 2800000, guid: ee9fec18422c6ec43921c04d11e05217, type: 3}
+  - id: bee_antenna
+    displayName: Bee Antenna
+    slot: 0
+    currency: 0
+    price: 35
+    model: {fileID: 919132149155446097, guid: 3718dfe4d89799b49a68b1992f1964df, type: 3}
+    icon: {fileID: 2800000, guid: d0e5b6cfdfd9a8342ab99008e845b242, type: 3}
+  - id: chef_hat
+    displayName: Chef Hat
+    slot: 0
     currency: 0
     price: 40
-    model: {fileID: 919132149155446097, guid: b5b87ad3387fef34c8ab8409e7ba079e, type: 3}
-    icon: {fileID: 2800000, guid: 731857310387f984f993d51a16f87edc, type: 3}
+    model: {fileID: 919132149155446097, guid: 3a5d401218e99aa4fb1da5e9c76faf3c, type: 3}
+    icon: {fileID: 2800000, guid: 2d57f033f4305ed44940bb716c5056a5, type: 3}
+  - id: strawberry_hat
+    displayName: Strawberry Hat
+    slot: 0
+    currency: 0
+    price: 45
+    model: {fileID: 919132149155446097, guid: abe7eb3596e7278459bbf69777eee2e4, type: 3}
+    icon: {fileID: 2800000, guid: afee5cebd0208a044ab29203c2d8f543, type: 3}
   - id: flower_crown
     displayName: Flower Crown
     slot: 0
@@ -35,3 +63,129 @@ MonoBehaviour:
     price: 10
     model: {fileID: 919132149155446097, guid: e64e0bbb87361ec4695a17c020589c1b, type: 3}
     icon: {fileID: 2800000, guid: 1f6b018531d1daa44a5617b8593d49fd, type: 3}
+  - id: icecream_hat
+    displayName: Ice Cream Hat
+    slot: 0
+    currency: 1
+    price: 12
+    model: {fileID: 919132149155446097, guid: 22aca94a07e2e7c4c8e659164b351f94, type: 3}
+    icon: {fileID: 2800000, guid: 61cddcfc6189f5b4d99e39d1a81ed6be, type: 3}
+  - id: crown
+    displayName: Crown
+    slot: 0
+    currency: 1
+    price: 20
+    model: {fileID: 919132149155446097, guid: 8def22d9f4f70084cb70c543147ffb05, type: 3}
+    icon: {fileID: 2800000, guid: 55b939bbc14a225429199eb903b1b50b, type: 3}
+  - id: round_glasses
+    displayName: Round Glasses
+    slot: 1
+    currency: 0
+    price: 30
+    model: {fileID: 919132149155446097, guid: 18ba08ca37141384696e8ecd5a5e949d, type: 3}
+    icon: {fileID: 2800000, guid: e97cdee9d777182449e02207defda51a, type: 3}
+  - id: heart_sticker
+    displayName: Heart Stickers
+    slot: 1
+    currency: 0
+    price: 30
+    model: {fileID: 919132149155446097, guid: 5469a2d6c3141464083bf6b19adc67ec, type: 3}
+    icon: {fileID: 2800000, guid: e0065720c176b4744a798c4577872d40, type: 3}
+  - id: heart_sunglasses
+    displayName: Heart Shades
+    slot: 1
+    currency: 1
+    price: 10
+    model: {fileID: 919132149155446097, guid: dd7692c6f62ecb046a815299b6fbf920, type: 3}
+    icon: {fileID: 2800000, guid: bbf9f951d8b20ca40a79dc1bf041b5b2, type: 3}
+  - id: ribbon_tie
+    displayName: Ribbon Tie
+    slot: 2
+    currency: 0
+    price: 30
+    model: {fileID: 919132149155446097, guid: 7b0e7561c5736c34594963afc9179dcd, type: 3}
+    icon: {fileID: 2800000, guid: 3de04ae732050b64d856053e2f3470ea, type: 3}
+  - id: check_scarf
+    displayName: Check Scarf
+    slot: 2
+    currency: 0
+    price: 40
+    model: {fileID: 919132149155446097, guid: 04ac388d75f2e8245852233890359062, type: 3}
+    icon: {fileID: 2800000, guid: cec414df4af46264e828a27d73c50471, type: 3}
+  - id: flower_lei
+    displayName: Flower Lei
+    slot: 2
+    currency: 0
+    price: 45
+    model: {fileID: 919132149155446097, guid: 68bac51729558c84599c32bd34c783ce, type: 3}
+    icon: {fileID: 2800000, guid: 28cd8f976093c2842bceec302c6275d3, type: 3}
+  - id: flower_apron
+    displayName: Flower Apron
+    slot: 3
+    currency: 0
+    price: 40
+    model: {fileID: 919132149155446097, guid: b5b87ad3387fef34c8ab8409e7ba079e, type: 3}
+    icon: {fileID: 2800000, guid: 731857310387f984f993d51a16f87edc, type: 3}
+  - id: barista_apron
+    displayName: Barista Apron
+    slot: 3
+    currency: 0
+    price: 50
+    model: {fileID: 919132149155446097, guid: 07c62e478ddcf224b8deb69ef7730689, type: 3}
+    icon: {fileID: 2800000, guid: c17a65c1605e204428466ea5fd7759a4, type: 3}
+  - id: overalls
+    displayName: Overalls
+    slot: 3
+    currency: 0
+    price: 55
+    model: {fileID: 919132149155446097, guid: 2cf570068f3bdcd419c1715ccb00e9ec, type: 3}
+    icon: {fileID: 2800000, guid: fde091d153150904687c8f97695bc427, type: 3}
+  - id: yellow_raincoat
+    displayName: Raincoat
+    slot: 3
+    currency: 0
+    price: 60
+    model: {fileID: 919132149155446097, guid: bf4130da472ede4468f3baab4a3bdb46, type: 3}
+    icon: {fileID: 2800000, guid: b58a8427d6540664d8ab081800f9a645, type: 3}
+  - id: sakura_kimono
+    displayName: Sakura Kimono
+    slot: 3
+    currency: 1
+    price: 18
+    model: {fileID: 919132149155446097, guid: d65fad23f41e8954fae07c1ad19c9403, type: 3}
+    icon: {fileID: 2800000, guid: 8c59cb8a1ee6ef2439617e7058e9c668, type: 3}
+  - id: princess_dress
+    displayName: Princess Dress
+    slot: 3
+    currency: 1
+    price: 20
+    model: {fileID: 919132149155446097, guid: 9dcb11d13ae794141a1580b33595f156, type: 3}
+    icon: {fileID: 2800000, guid: 88dba532ef5180a4a9b77bab53fd9723, type: 3}
+  - id: watering_can
+    displayName: Watering Can
+    slot: 4
+    currency: 0
+    price: 35
+    model: {fileID: 919132149155446097, guid: f1ece0e234063ca4694652ad6a58e70e, type: 3}
+    icon: {fileID: 2800000, guid: 8e89504bc0c019b4d9213138daa19063, type: 3}
+  - id: mini_bouquet
+    displayName: Mini Bouquet
+    slot: 4
+    currency: 0
+    price: 40
+    model: {fileID: 919132149155446097, guid: fc5094f04dfc0164c9fb850d765ff99b, type: 3}
+    icon: {fileID: 2800000, guid: 55a4f25576e511e42a7d3f351f423890, type: 3}
+  - id: icecream_cone
+    displayName: Ice Cream Cone
+    slot: 4
+    currency: 0
+    price: 45
+    model: {fileID: 919132149155446097, guid: b1cc94443a099664c9796e133cd2bd7b, type: 3}
+    icon: {fileID: 2800000, guid: 958820c8237a37d4b87f852eb50a4944, type: 3}
+  - id: star_wand
+    displayName: Star Wand
+    slot: 4
+    currency: 1
+    price: 15
+    model: {fileID: 919132149155446097, guid: f5d4de3c809d3d24ca970be3a3735d64, type: 3}
+    icon: {fileID: 2800000, guid: 0e320129faec1f545ae332eabb3011a7, type: 3}

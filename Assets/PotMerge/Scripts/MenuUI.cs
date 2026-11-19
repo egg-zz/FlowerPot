@@ -648,16 +648,61 @@ namespace PotMerge
             OpenPopup(popup);
         }
 
+        int costumeFilter = -1;      // -1 = all, otherwise a CostumeSlot
+        float costumeScroll;         // kept across shop rebuilds (buy / wear re-open the popup)
+
         // costumes for the hamster owner: buy with coins/jewels, then wear or take off
         void AddCostumeSection(VisualElement body)
         {
             if (costumes == null || costumes.costumes == null || costumes.costumes.Length == 0) return;
+
+            // slot filter chips: ALL HAT FACE NECK BODY HAND
+            var chips = new VisualElement { pickingMode = PickingMode.Ignore };
+            chips.style.flexDirection = FlexDirection.Row;
+            chips.style.justifyContent = Justify.SpaceBetween;
+            chips.style.marginBottom = 24;
+            string[] chipNames = { "ALL", "HAT", "FACE", "NECK", "BODY", "HAND" };
+            for (int f = -1; f < 5; f++)
+            {
+                int filter = f;
+                bool sel = costumeFilter == f;
+                var chip = BigButton(chipNames[f + 1], 128, 76, 26,
+                    sel ? new Color(0.40f, 0.70f, 0.95f) : new Color(0.90f, 0.86f, 0.78f),
+                    sel ? new Color(0.25f, 0.50f, 0.78f) : CreamShadow,
+                    () => { if (costumeFilter != filter) { costumeFilter = filter; costumeScroll = 0; OpenShop(); } });
+                if (!sel) ((Label)chip[0]).style.color = InkSoft;
+                chips.Add(chip);
+            }
+            body.Add(chips);
+
+            var scroll = new ScrollView(ScrollViewMode.Vertical);
+            scroll.style.maxHeight = 1000;
+            scroll.horizontalScrollerVisibility = ScrollerVisibility.Hidden;
+            scroll.verticalScrollerVisibility = ScrollerVisibility.Hidden;
+            scroll.touchScrollBehavior = ScrollView.TouchScrollBehavior.Elastic;
+            scroll.mouseWheelScrollSize = 120;
+            scroll.verticalScroller.valueChanged += v => costumeScroll = v;
+            float restore = costumeScroll;
+            // restore the previous position once the cards are laid out, clamped to the list length
+            scroll.contentContainer.RegisterCallback<GeometryChangedEvent>(e =>
+            {
+                if (restore <= 0) return;
+                float max = Mathf.Max(0, scroll.contentContainer.layout.height - scroll.contentViewport.layout.height);
+                scroll.scrollOffset = new Vector2(0, Mathf.Min(restore, max));
+                restore = 0;
+            });
+            body.Add(scroll);
+
             var row = ShopRow();
             row.style.flexWrap = Wrap.Wrap;
             row.style.justifyContent = Justify.FlexStart;
-            for (int i = 0; i < costumes.costumes.Length; i++)
+            row.style.marginBottom = 0;
+            int shown = 0;
+            for (int n = 0; n < costumes.costumes.Length; n++)
             {
-                var c = costumes.costumes[i];
+                var c = costumes.costumes[n];
+                if (costumeFilter >= 0 && (int)c.slot != costumeFilter) continue;
+                int i = shown++;
                 var icon = new VisualElement { pickingMode = PickingMode.Ignore };
                 icon.style.width = 110; icon.style.height = 110;
                 if (c.icon != null) icon.style.backgroundImage = new StyleBackground(c.icon);
@@ -690,7 +735,7 @@ namespace PotMerge
                 card.Add(btn);
                 row.Add(card);
             }
-            body.Add(row);
+            scroll.Add(row);
         }
 
         void BuyCostume(CostumeDatabase.Costume c)

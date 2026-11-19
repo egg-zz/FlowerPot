@@ -34,7 +34,7 @@ Unity 프로젝트 + 3ds Max 모델링을 MCP로 연결해서 만드는 머지 �
 1. **타이틀**: 둥근 섬 위에 꽃집 하나, "FLOWER / POT" 버블 글씨(Modak, 갈색 외곽선+그림자)가 글자별로 둥실둥실, 탭하면 홈으로
    - 둥근 꽃집: `Assets/Models/Shop/RoundShop.fbx` (원본 `D:\KSR_26.11.17_RoundShop_Title.max`의 `RoundShop`). 같은 파일의 `Title`(캡슐 글자)은 버블 폰트로 대체되어 안 씀
 2. **홈**: 좌상단 코인·쥬얼리, 그 아래 QUESTS → SHOP → LUCKY BOX(남은 시간 표시), 우상단 COLLECTION → 설정, 화면 3/4 지점에 GAME START
-   - 상점: 쥬얼리로 코인 팩 구매, 쥬얼리 팩(결제 미연결), 코스튬은 coming soon
+   - 상점: 코스튬 구매·착용, 쥬얼리로 코인 팩 구매, 쥬얼리 팩(결제 미연결)
 3. 게임 카메라: 기울기 48도(`MergeBoard.cameraPitch`), 아이템은 칸을 거의 꽉 채움(`itemFootprint 0.95`)
    - 체인별 최고 단계는 도감 탭에, 일일 퀘스트는 QUESTS 버튼 팝업에 있다
 - UI는 전부 둥글게(알약 버튼, 큰 모서리). 보드 타일도 둥근 모서리 메시(`RoundedMesh.cs`)
@@ -42,16 +42,20 @@ Unity 프로젝트 + 3ds Max 모델링을 MCP로 연결해서 만드는 머지 �
 3. **게임**: 보드, 코인, 홈·설정 버튼, ADD ITEM 버튼 (게임 오버 카드에 HOME / RESTART)
 - 설정: 사운드 on/off, 진행 초기화(확인 팝업) / 도감: 체인 탭별 11칸, 미해금은 흐린 실루엣 + ???
 - 일일 퀘스트: 날짜 기준으로 하루 3개, 완료하면 CLAIM으로 코인 보상
-- **상점: 아직 "coming soon"** — 꽃집 사장(동물 캐릭터)과 코스튬을 코인으로 사는 기능 예정 (캐릭터 목록 제안 → Max 모델링 → OK 후 Unity)
+- **상점**: COSTUMES(햄스터 코스튬 25개) / COINS(쥬얼리→코인, 쥬얼리 팩은 결제 미연결) 두 탭
 
 ## 꽃집 사장 햄스터 (구현됨)
 - 볼 빵빵한 크림색 2등신 햄스터. 홈 화면 꽃집 옆에 서서 통통 튀고 눈을 깜빡인다 (`ShopOwner.cs`)
 - 모델: `Assets/Models/Hamster/Hamster.fbx` — 몸·머리·볼이 **한 덩어리 매끈한 메시**, 흰 얼굴/분홍 볼/흰 배는 **정점 색**(셰이더 `PotMerge/VertexColorLit`, 재질 `HM_SkinVC`)
-- 코스튬 FBX는 햄스터 원점 기준으로 내보내서 그대로 겹쳐 붙인다: `Costume_StrawHat`(코인 30), `Costume_FlowerApron`(코인 40), `Costume_FlowerCrown`(쥬얼리 10) → `Assets/PotMerge/Data/CostumeDatabase.asset`
+- 코스튬 FBX는 햄스터 원점 기준으로 내보내서 그대로 겹쳐 붙인다. **25개 전부 상점 등록됨** → `Assets/PotMerge/Data/CostumeDatabase.asset` (슬롯 순서로 정렬)
+  - 원래 3개: `Assets/Models/Hamster/Costume_*.fbx` / 새 22개: `Assets/Models/Hamster/Costumes/<id>.fbx`, 아이콘 `Assets/PotMerge/Icons/Costumes/<id>.png`
+  - 가격: 코인 30~60, 쥬얼리 10~20 (Flower Crown 10, Heart Shades 10, Ice Cream Hat 12, Star Wand 15, Sakura Kimono 18, Crown 20, Princess Dress 20)
+  - 옷(앞치마·멜빵 바지·드레스 등)은 Max에서 햄스터 몸 단면 표를 따라 감싸는 메시로 만든다
 - 슬롯: Hat / Face / Neck / Body / Hand — 같은 슬롯은 하나만 착용. 상점 COSTUMES 탭에서 구매(바로 착용)·WEAR/WEARING 토글 (상점은 COSTUMES / COINS 두 탭)
+  - COSTUMES 탭: ALL / HAT / FACE / NECK / BODY / HAND 필터 칩 + 세로 스크롤 목록 (구매 후 다시 열려도 스크롤 위치 유지)
 - **게임 화면 상단 중앙**에도 햄스터가 코스튬을 입고 서 있고, **머지할 때마다 점프+한 바퀴** (높은 단계일수록 크게). 보드 아래 숨은 무대(y=-300)를 작은 카메라로 렌더해 HUD에 띄운다 (`OwnerPortrait.cs`)
-- Max 원본: `D:\KSR_26.11.17_RoundShop_Title.max`의 `Hamster_Base` / `Hamster_CoinLook` / `Hamster_JewelLook`
-- 코스튬 후보(제안함, 미제작): 모자 — 요리사 모자, 바리스타 베레모, 새싹 머리핀, 꿀벌 더듬이, 딸기 모자, 아이스크림 콘 모자, 왕관 / 얼굴 — 동그란 안경, 하트 볼스티커, 하트 선글라스 / 목 — 리본 넥타이, 체크 스카프, 꽃 레이 / 몸 — 바리스타 앞치마, 멜빵 바지, 벚꽃 기모노, 공주 드레스, 노란 비옷 / 손 — 물뿌리개, 꽃다발, 아이스크림 콘, 별 마법봉
+- Max 원본: `D:\KSR_26.11.17_Hamster.max` (`D:\KSR_26.11.17_RoundShop_Title.max`의 최신판)의 `Hamster_Base` / `Hamster_CoinLook` / `Hamster_JewelLook`, 코스튬 `Costume_*`(숨김, 내보내기용), 진열용 `Costume_Showcase/Show_*`
+- 코스튬 목록(제작 완료): 모자 — 요리사 모자, 바리스타 베레모, 새싹 머리핀, 꿀벌 더듬이, 딸기 모자, 아이스크림 콘 모자, 왕관 / 얼굴 — 동그란 안경, 하트 볼스티커, 하트 선글라스 / 목 — 리본 넥타이, 체크 스카프, 꽃 레이 / 몸 — 바리스타 앞치마, 멜빵 바지, 벚꽃 기모노, 공주 드레스, 노란 비옷 / 손 — 물뿌리개, 꽃다발, 아이스크림 콘, 별 마법봉
 
 ## 머지 체인 (단계 이름)
 | 단계 | Flower | Cafe | Bakery | Ice Cream |
