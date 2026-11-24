@@ -6,6 +6,7 @@ Unity 프로젝트 + 3ds Max 모델링을 MCP로 연결해서 만드는 머지 �
 - **Unity 6000.5.0f1**, Built-in Render Pipeline, UI Toolkit(UGUI/TextMeshPro 없음), 레거시 Input Manager
 - **3ds Max** (단위: inch) — 모델링은 MAXScript로 프리미티브를 조합해서 만든다
 - MCP 서버: `unityMCP`(MCP for Unity), `3dsmax-mcp` — 로컬 경로가 들어 있는 `.mcp.json`은 git에서 제외
+- **Android APK**(2026-11-24): 앱 이름 FlowerPot, 패키지 `com.eggzz.flowerpot`, 아이콘 `Assets/PotMerge/Icons/App/`(적응형 앞/배경 + 전체), ARM64 IL2CPP, 디버그 서명. Build Profiles → Android에서 Build App Bundle을 끄고 `Builds/FlowerPot.apk`로 빌드(git 제외)
 - GitHub: `egg-zz/FlowerPot` — 커밋 작성자는 `egg-zz <203041175+egg-zz@users.noreply.github.com>`, **커밋에 Claude 이름이나 Co-authored-by를 넣지 않는다**. 푸시는 GitHub Desktop으로 한다(CLI에는 GitHub 인증이 없음).
 
 ## 앞으로 할 일
