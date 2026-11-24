@@ -41,7 +41,7 @@ namespace PotMerge
                 board.NeedHearts += OpenHearts;
                 board.NeedEnergy += OpenEnergy;
             }
-            if (hud != null) hud.EnergyClicked += OpenEnergy;
+            if (hud != null) { hud.EnergyClicked += OpenEnergy; hud.CustomerClicked += OpenCustomer; }
             ShowTitle();
         }
 
@@ -65,11 +65,12 @@ namespace PotMerge
                 board.NeedHearts -= OpenHearts;
                 board.NeedEnergy -= OpenEnergy;
             }
-            if (hud != null) hud.EnergyClicked -= OpenEnergy;
+            if (hud != null) { hud.EnergyClicked -= OpenEnergy; hud.CustomerClicked -= OpenCustomer; }
         }
 
         void OpenHearts() => menu?.OpenHearts();
         void OpenEnergy() => menu?.OpenEnergy();
+        void OpenCustomer() => menu?.OpenCustomer();
 
         void Update()
         {

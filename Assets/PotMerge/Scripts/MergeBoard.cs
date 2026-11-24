@@ -18,7 +18,7 @@ namespace PotMerge
     ///    level costs a heart; time up can be extended with an ad or jewels.
     /// A level in progress is kept in memory while the player visits the home screen; it is not saved to disk.
     /// </summary>
-    public class MergeBoard : MonoBehaviour
+    public partial class MergeBoard : MonoBehaviour
     {
         [Header("Content")]
         public ChainDatabase database;
@@ -71,6 +71,8 @@ namespace PotMerge
 
         /// <summary>Raised after every merge with (chain, new level).</summary>
         public event Action<int, int> Merged;
+        /// <summary>A merge stage was made for the first time.</summary>
+        public event Action Unlocked;
         /// <summary>Raised when the player leaves a decided level from a result popup (go to the home screen).</summary>
         public event Action LeaveRequested;
         /// <summary>Raised when the player wants to play on but has no hearts left.</summary>
@@ -197,6 +199,7 @@ namespace PotMerge
             else if (!gameOver) HandleInput();
             TickHint();
             TickTimer();
+            TickOrders();
         }
 
         // ------------------------------------------------------------------ levels
@@ -239,6 +242,7 @@ namespace PotMerge
                 PlayerData.ReportItem(chain, lv);
                 d += 0.06f;
             }
+            StartOrders();
             hud?.SetLevel(levelNumber);
             hud?.SetTimer(timeLeft, def.seconds);
             RefreshGoals();
@@ -413,6 +417,7 @@ namespace PotMerge
                 else text = $"Any Lv {g.level}";
                 list.Add(new MergeHUD.GoalView { text = text, icon = icon, progress = goalProgress[i], target = g.count });
             }
+            if (OrderCount > 0) list.Add(new MergeHUD.GoalView { text = "Bonus", progress = ordersServed, target = OrderCount, bonus = true });
             hud.SetGoals(list);
         }
 
@@ -504,11 +509,14 @@ namespace PotMerge
             float boardD = rows * cellSize + 0.6f;
             float vHalf = cam.fieldOfView * 0.5f * Mathf.Deg2Rad;
             float hHalf = Mathf.Atan(Mathf.Tan(vHalf) * cam.aspect);
-            float distW = boardW * 0.5f / Mathf.Tan(hHalf);
+            var rot = Quaternion.Euler(pitch, 0f, 0f);
+            Vector3 targetOffset = new Vector3(0f, 0.5f, 0.3f);
+            // fit the front edge of the board: it is the closest to the camera, so the widest on screen
+            float frontDepth = Vector3.Dot(new Vector3(0f, 0f, -boardD * 0.5f) - targetOffset, rot * Vector3.forward);
+            float distW = boardW * 0.5f / Mathf.Tan(hHalf) - frontDepth;
             float distD = (boardD * Mathf.Sin(pitch * Mathf.Deg2Rad) * 0.5f + 1.2f) / (Mathf.Tan(vHalf) * 0.68f);
             float dist = Mathf.Max(distW, distD);
-            var rot = Quaternion.Euler(pitch, 0f, 0f);
-            Vector3 target = transform.position + new Vector3(0f, 0.5f, 0.3f);
+            Vector3 target = transform.position + targetOffset;
             cam.transform.rotation = rot;
             cam.transform.position = target - rot * Vector3.forward * dist;
         }
@@ -559,6 +567,7 @@ namespace PotMerge
                     item.MoveTo(CellToWorld(item.Cell));
                     TapBox(item);
                 }
+                else if (OverCustomer(mouse)) Deliver(item);
                 else Drop(item);
             }
         }
@@ -680,6 +689,7 @@ namespace PotMerge
                 hud?.ShowToast("NEW! " + database.LevelName(chain, newLevel), Color.white);
                 SoundFx.Unlock();
                 EmitBurst(pos + Vector3.up * 1.2f, chain, 90);
+                Unlocked?.Invoke();
             }
             busyMerges--;
             if (state == LevelState.Playing)
@@ -723,7 +733,7 @@ namespace PotMerge
             box.PlayPunch();
             SoundFx.Pop();
             hud?.FloatText(box.transform.position + Vector3.up * 1.8f, "-" + energyPerTap, new Color(0.55f, 0.85f, 1f), 46f);
-            if (PlayerData.ReportItem(box.Chain, lv)) hud?.ShowToast("NEW! " + database.LevelName(box.Chain, lv), Color.white);
+            if (PlayerData.ReportItem(box.Chain, lv)) { hud?.ShowToast("NEW! " + database.LevelName(box.Chain, lv), Color.white); Unlocked?.Invoke(); }
             PlayerData.OnAddItem();
             ProgressGoals(box.Chain, lv, false);
             if (AllGoalsDone()) { Clear(); return; }
@@ -820,7 +830,8 @@ namespace PotMerge
             hud.SetCoins(Coins, punch);
             if (state != LevelState.Playing || busyMerges > 0) return;
             // board full and nothing to merge: the level is lost (boxes have nowhere to drop items)
-            if (!HasAnyMerge(out _, out _) && FreeCellCount() == 0) Fail(false);
+            RefreshOrder();
+            if (!HasAnyMerge(out _, out _) && FreeCellCount() == 0 && !HasDeliverable()) Fail(false);
         }
 
         void TickHint()

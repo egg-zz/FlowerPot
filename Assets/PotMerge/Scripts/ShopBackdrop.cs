@@ -83,7 +83,7 @@ namespace PotMerge
             {
                 cam.clearFlags = CameraClearFlags.SolidColor;
                 cam.backgroundColor = sky;
-                cam.fieldOfView = cameraFov;
+                cam.fieldOfView = FovForAspect();
             }
             ApplyCamera(0f);
         }
@@ -101,6 +101,13 @@ namespace PotMerge
             if (root != null) root.gameObject.SetActive(false);
         }
 
+        /// <summary>Phones taller than 9:16: widen the vertical FOV so the 9:16 width (shop + hamster) always stays on screen.</summary>
+        float FovForAspect()
+        {
+            float k = Mathf.Max(1f, (9f / 16f) / cam.aspect);
+            return 2f * Mathf.Rad2Deg * Mathf.Atan(Mathf.Tan(cameraFov * 0.5f * Mathf.Deg2Rad) * k);
+        }
+
         void LateUpdate()
         {
             if (showing) ApplyCamera(Time.time);
@@ -113,6 +120,7 @@ namespace PotMerge
             float k = Mathf.SmoothStep(0f, 1f, homeBlend);
             float pitch = Mathf.Lerp(cameraPitch, homeCameraPitch, k);
             Vector3 local = Vector3.Lerp(cameraLocalPos, homeCameraLocalPos, k);
+            cam.fieldOfView = FovForAspect();
             float yaw = Mathf.Sin(t * 0.35f) * swayDegrees;
             var rot = Quaternion.Euler(pitch, yaw, 0f);
             cam.transform.position = offset + Quaternion.Euler(0f, yaw, 0f) * local;

@@ -405,8 +405,16 @@ namespace PotMerge
 
         public static readonly Color EnergyColor = new Color(1f, 0.70f, 0.15f);
 
+        /// <summary>"02:00" until the next energy point, empty when energy is full.</summary>
+        public static string EnergyClock()
+        {
+            if (PlayerData.Energy >= PlayerData.MaxEnergy) return "";
+            int s = Mathf.CeilToInt((float)PlayerData.EnergyRemaining.TotalSeconds);
+            return $"{s / 60:00}:{s % 60:00}";
+        }
+
         /// <summary>Tappable cream pill with a lightning bolt and the energy amount.</summary>
-        public static Button EnergyPill(out Label amount, Action onClick)
+        public static Button EnergyPill(out Label amount, out Label timer, Action onClick)
         {
             var b = new Button(() => { SoundFx.Tap(); onClick?.Invoke(); }) { text = "" };
             b.style.flexDirection = FlexDirection.Row;
@@ -423,6 +431,12 @@ namespace PotMerge
             bolt.style.marginRight = 8;
             b.Add(bolt);
             amount = MakeLabel("100", 46, Ink);
+            // small countdown to the next energy point, under the pill
+            timer = MakeLabel("", 26, InkSoft);
+            timer.style.position = Position.Absolute;
+            timer.style.left = 0; timer.style.right = 0; timer.style.bottom = -40;
+            timer.style.unityTextAlign = TextAnchor.MiddleCenter;
+            b.Add(timer);
             b.Add(amount);
             AddPress(b);
             return b;

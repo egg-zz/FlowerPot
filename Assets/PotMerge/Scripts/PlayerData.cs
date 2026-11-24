@@ -194,7 +194,7 @@ namespace PotMerge
         }
 
         // ------------------------------------------------------------------ levels
-        public const int ClearEnergy = 3;          // energy for every clear (replays too)
+        public const int ClearEnergy = 3;          // energy for the first clear
         public const int JewelLevelInterval = 10;  // every 10th level also gives jewels
         public const int JewelLevelReward = 3;
 
@@ -211,8 +211,8 @@ namespace PotMerge
         }
 
         /// <summary>
-        /// Records a cleared level. Every clear gives <see cref="ClearEnergy"/> energy (it may go above the max).
-        /// The first clear also gives a random coin amount (<see cref="RollClearCoins"/>) and, on every 10th level,
+        /// Records a cleared level. Rewards are for the first clear only: <see cref="ClearEnergy"/> energy (never above the max),
+        /// a random coin amount (<see cref="RollClearCoins"/>) and, on every 10th level,
         /// <see cref="JewelLevelReward"/> jewels.
         /// </summary>
         public static (int coins, int jewels, int energy) CompleteLevel(int level, int stars)
@@ -221,8 +221,9 @@ namespace PotMerge
             while (D.levelStars.Count < level) D.levelStars.Add(0);
             bool firstClear = level >= D.levelReached;
             D.levelStars[level - 1] = Mathf.Max(D.levelStars[level - 1], stars);
-            int coins = 0, jewels = 0, energy = ClearEnergy;
+            int coins = 0, jewels = 0, energy = firstClear ? ClearEnergy : 0;
             RegenEnergy();
+            energy = Mathf.Clamp(MaxEnergy - D.energy, 0, energy); // never above the max
             D.energy += energy;
             if (D.energy >= MaxEnergy) D.energyNextTicks = 0;
             if (firstClear)
@@ -539,6 +540,7 @@ namespace PotMerge
             // saves from before hearts existed deserialize hearts as 0: start them full
             if (data.hearts <= 0 && data.heartNextTicks == 0) data.hearts = MaxHearts;
             if (!data.energyInit) { data.energy = MaxEnergy; data.energyNextTicks = 0; data.energyInit = true; }
+            data.energy = Mathf.Clamp(data.energy, 0, MaxEnergy); // older saves could hold more than the max
         }
 
 #if UNITY_EDITOR

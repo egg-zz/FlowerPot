@@ -19,13 +19,15 @@ Unity 프로젝트 + 3ds Max 모델링을 MCP로 연결해서 만드는 머지 �
 - 신규 플레이어 시작 코인 **15개**
 
 ### 레벨 모드 (2026-11-19부터, 무한 모드는 없앰)
-- 레벨 데이터: `Assets/PotMerge/Data/LevelDatabase.asset` (`LevelDatabase.cs`, 기본값은 `DefaultLevels()` — 에셋 우클릭 메뉴 "Reset To Default Levels"로 코드 값을 다시 채움). 지금은 **Lv 1~14**: 1~9는 **제한 시간 없음**(튜토리얼 느낌), 10~14는 **타이머 첫 등장**(80~110초). 햄스터 주문은 Lv 15~, 보드 기믹(나무 상자·거미줄·잡초)은 Lv 25~ 예정
+- 레벨 데이터: `Assets/PotMerge/Data/LevelDatabase.asset` (`LevelDatabase.cs`, 기본값은 `DefaultLevels()` — 에셋 우클릭 메뉴 "Reset To Default Levels"로 코드 값을 다시 채움). 지금은 **Lv 1~24**: 1~9는 **제한 시간 없음**(튜토리얼 느낌), 10~14는 **타이머 첫 등장**(80~110초). 15~24는 **목표 + 부가 주문**(15~17 시간 없음, 18~24 110~180초), 보드 기믹(나무 상자·거미줄·잡초)은 Lv 25~ 예정
 - 레벨마다: **목표**(머지 N번 / 특정 체인 머지 N번 / 특정 아이템(또는 아무 체인 N단계) 만들기), **제한 시간**(0 = 없음), **디자인된 시작 보드**(`"F1 3 3; C2 0 6"` = 체인 글자 F/C/B/I + 단계, 칸 x y), **아이템 상자 위치**(`boxes`, 비우면 `"F 0 0; C 2 0; B 4 0; I 6 0"` = 맨 아래 줄)
 - **아이템 상자 4개**(ADD ITEM 대신, 2026-11-19): 체인마다 하나씩 보드 칸 위에 놓인다(`Gen_Flower/Cafe/Bakery/IceCream`, `Assets/Models/Generators/`, `MergeBoard.boxModels`). **톡 누르면 에너지 ⚡1**을 쓰고 그 체인의 **1~2단계**(보드 기믹이 나오는 **Lv 25부터 1~3단계**, 같은 확률, `boxMaxLevelEarly / boxMaxLevel / boxUpgradeLevel`) 아이템이 가장 가까운 빈 칸으로 나온다. 끌면 자리 이동, 머지는 안 됨(`PotItem.IsGenerator` = Level 0). 빈 칸 없으면 막고 안내, 에너지 없으면 에너지 팝업. 상자에서 나온 아이템도 "만들기" 목표에 들어간다(그래서 만들기 목표는 4단계 이상)
-- 목표 다 채우면 **클리어** → 남은 시간 50% 이상 별 3 / 25% 이상 별 2 / 그 외 별 1 (시간 연장했으면 별 1, 시간 없는 레벨은 항상 별 3). **매 클리어 에너지 ⚡+3**(최대치 넘어도 쌓임). **처음 깰 때만** 코인을 별에 따라 랜덤으로(별1: 2~3, 별2: 3~6, 별3: 4~9, `PlayerData.RollClearCoins`), 10레벨마다 쥬얼리 3개
+- 목표 다 채우면 **클리어** → 남은 시간 50% 이상 별 3 / 25% 이상 별 2 / 그 외 별 1 (시간 연장했으면 별 1, 시간 없는 레벨은 항상 별 3). **처음 깰 때만** 에너지 ⚡+3(최대 100을 넘지 않음, 2026-11-24에 매 클리어에서 변경)과 코인을 별에 따라 랜덤으로(별1: 2~3, 별2: 3~6, 별3: 4~9, `PlayerData.RollClearCoins`), 10레벨마다 쥬얼리 3개
 - **실패**: 시간 초과 → 광고 +30초 / 쥬얼리 5개 +30초 / HOME / RETRY. 보드 가득 + 머지 불가 → HOME / RETRY. **포기(HOME·RETRY)하면 하트 1개** 소모
-- **에너지 ⚡**: 최대 100, 2분마다 1 회복, 기존 플레이어는 100으로 시작. 홈(하트 옆)·게임 상단 ⚡ 알약을 누르면 에너지 팝업: 광고 +20(하루 광고 횟수에 포함) / 쥬얼리 10개 = 가득. 저장: `PlayerData.energy / energyNextTicks`
+- **에너지 ⚡**: 최대 100(절대 넘지 않음), 2분마다 1 회복(알약 아래에 다음 회복까지 `02:00` 타이머, 가득이면 숨김), 기존 플레이어는 100으로 시작. 홈(하트 옆)·게임 상단 ⚡ 알약을 누르면 에너지 팝업: 광고 +20(하루 광고 횟수에 포함) / 쥬얼리 10개 = 가득. 저장: `PlayerData.energy / energyNextTicks`
 - **하트 5개**, 30분마다 1개 회복, 0개면 레벨 시작 불가 → 광고 +1 / 쥬얼리 10개 = 가득. 홈 좌상단 하트 알약을 누르면 하트 팝업
+- **햄스터 주문**(Lv 15~, 2026-11-24, `MergeBoard.Orders.cs`): **부가 퀘스트**라 레벨 클리어에는 필요 없다(목표만 채우면 클리어). `Level.orders` = `"C3 B4"` 식 문자열 배열. 레벨 도중 손님이 종소리와 함께 뚜벅뚜벅 걸어 들어오고, 시간 있는 레벨에서는 기다리다(30초 + 1단계 환산 x 1.5초) 떠난다. 카드에 Bonus n/m. 아이템을 손님이나 말풍선에 끌어다 놓으면 납품, **체인과 단계가 정확히 같아야** 한다(다르면 고개를 젓고 원래 칸으로). 주문 1장 완료 = 난이도별 **1~5코인**(1단계 환산 4/8/12/16/그 이상, `LevelDatabase.OrderReward`, 첫 클리어 전까지만). 보드가 가득 차도 납품할 것이 있으면 실패 아님
+- **재즈바**(`OrderBar.cs`, y=-340 숨은 무대): 주문 레벨에서는 게임 상단이 긴 테이블이 있는 바로 바뀌고 햄스터는 상반신만 보인다. 손님은 안 산 코스튬·COMING SOON 코스튬을 최대 3개 입고 온다(사장님보다 작음). 누르면 코스튬 이름·가격 팝업(`MenuUI.Customer.cs`, 타이머 멈춤) → SHOP. 클리어 카드에도 코스튬 하나를 보여 준다
 - 진행 중인 레벨은 홈에 다녀와도 메모리에 남아 이어진다(버튼이 CONTINUE LV N). 앱을 끄면 레벨은 처음부터(하트 소모 없음). 진행 저장: `PlayerData.levelReached / levelStars / hearts`
 
 ## 재화 (사용자가 정한 방향)
@@ -53,14 +55,15 @@ Unity 프로젝트 + 3ds Max 모델링을 MCP로 연결해서 만드는 머지 �
 ## 꽃집 사장 햄스터 (구현됨)
 - 볼 빵빵한 크림색 2등신 햄스터. 홈 화면 꽃집 옆에 서서 통통 튀고 눈을 깜빡인다 (`ShopOwner.cs`)
 - 모델: `Assets/Models/Hamster/Hamster.fbx` — 몸·머리·볼이 **한 덩어리 매끈한 메시**, 흰 얼굴/분홍 볼/흰 배는 **정점 색**(셰이더 `PotMerge/VertexColorLit`, 재질 `HM_SkinVC`)
-- 코스튬 FBX는 햄스터 원점 기준으로 내보내서 그대로 겹쳐 붙인다. **25개 전부 상점 등록됨** → `Assets/PotMerge/Data/CostumeDatabase.asset` (슬롯 순서로 정렬)
+- 코스튬 FBX는 햄스터 원점 기준으로 내보내서 그대로 겹쳐 붙인다. **31개 상점 등록됨(6개는 COMING SOON)** → `Assets/PotMerge/Data/CostumeDatabase.asset` (슬롯 순서로 정렬)
   - 원래 3개: `Assets/Models/Hamster/Costume_*.fbx` / 새 22개: `Assets/Models/Hamster/Costumes/<id>.fbx`, 아이콘 `Assets/PotMerge/Icons/Costumes/<id>.png`
   - 가격: **코인 150~400** (2026-11-19에 30~60에서 올림: 150 = 밀짚모자·새싹 핀·안경·하트 스티커·리본, 180·200·240·280·320, 비옷 400), 쥬얼리 10~20 (Flower Crown 10, Heart Shades 10, Ice Cream Hat 12, Star Wand 15, Sakura Kimono 18, Crown 20, Princess Dress 20)
   - 옷(앞치마·멜빵 바지·드레스 등)은 Max에서 햄스터 몸 단면 표를 따라 감싸는 메시로 만든다
+- **COMING SOON 6종**(2026-11-24, 상점 등록됨·구매 불가): Wizard Hat, Bunny Ears, Sleepy Mask, Angel Wings, Santa Coat, Heart Balloon — Max `D:\KSR_26.11.24_Hamster.max`의 `Costume_<id>`. 판매를 시작할 때 `CostumeDatabase`에서 가격을 정하고 `comingSoon`을 끈다
 - 슬롯: Hat / Face / Neck / Body / Hand — 같은 슬롯은 하나만 착용. 상점 COSTUMES 탭에서 구매(**BUY? 확인 팝업** 후 바로 착용)·WEAR/WEARING 토글 (상점은 COSTUMES / COINS 두 탭)
   - COSTUMES 탭: ALL / HAT / FACE / NECK / BODY / HAND 필터 칩, 왼쪽 **TRY ON 칸**(햄스터 사장님 착샷) + 오른쪽 2열 목록(**한 화면에 카드 4개**, 나머지는 스크롤) (구매 후 다시 열려도 스크롤 위치 유지)
   - **착샷(TRY ON)**: 카드(버튼 말고 카드 자체)를 누르면 사지 않고 입어 봄(파란 테두리), 다시 누르면 벗음, RESET으로 전부 해제. 상점을 닫으면 원래대로. `CostumePreview.cs`가 슬롯별 미리보기를 들고 있고 `ShopOwner`가 장착 대신 그걸 입힘. 그림은 게임 화면 상단 햄스터와 같은 `OwnerPortrait` 렌더 텍스처(`ForceRender`로 상점에서도 렌더)
-- **게임 화면 상단 중앙**에도 햄스터가 코스튬을 입고 서 있고, **머지할 때마다 점프+한 바퀴** (높은 단계일수록 크게). 보드 아래 숨은 무대(y=-300)를 작은 카메라로 렌더해 HUD에 띄운다 (`OwnerPortrait.cs`)
+- **게임 화면 상단 중앙**에도 햄스터가 코스튬을 입고 서 있고, 머지할 때는 **웃으면서 좌우로 살랑살랑** 흔든다(`ShopOwner.Smile`, 정신 사나워서 2026-11-24에 줄임). **새 머지 단계가 열리거나 납품할 때만** 점프+한 바퀴로 크게 반응. 보드 아래 숨은 무대(y=-300)를 작은 카메라로 렌더해 HUD에 띄운다 (`OwnerPortrait.cs`)
 - Max 원본: `D:\KSR_26.11.17_Hamster.max` (`D:\KSR_26.11.17_RoundShop_Title.max`의 최신판)의 `Hamster_Base` / `Hamster_CoinLook` / `Hamster_JewelLook`, 코스튬 `Costume_*`(숨김, 내보내기용), 진열용 `Costume_Showcase/Show_*`
 - 코스튬 목록(제작 완료): 모자 — 요리사 모자, 바리스타 베레모, 새싹 머리핀, 꿀벌 더듬이, 딸기 모자, 아이스크림 콘 모자, 왕관 / 얼굴 — 동그란 안경, 하트 볼스티커, 하트 선글라스 / 목 — 리본 넥타이, 체크 스카프, 꽃 레이 / 몸 — 바리스타 앞치마, 멜빵 바지, 벚꽃 기모노, 공주 드레스, 노란 비옷 / 손 — 물뿌리개, 꽃다발, 아이스크림 콘, 별 마법봉
 
@@ -108,6 +111,7 @@ Unity 프로젝트 + 3ds Max 모델링을 MCP로 연결해서 만드는 머지 �
 - 투명해야 하는 재질: `CupClear`, `Glass`, `MilkTeaClear` (컵 안 음료/버블이 보여야 함).
 - MAXScript는 대소문자를 구분하지 않는다 (`R`과 `r`이 같은 변수).
 - Max 뷰포트 캡처가 안 될 때는 Scanline으로 오프스크린 렌더해서 라인업 시트를 만든다(`Captures/` 폴더, git 제외).
+- Game 뷰 크기는 PC마다 따로 저장된다. 새 PC에서는 세로 1080x1920(또는 1080x2340)을 직접 추가한다.
 - Play 모드 중에 스크립트를 수정하면 재컴파일되어 런타임 상태가 날아간다.
 - 게임 진행(코인, 레벨, 하트)은 PlayerPrefs라서 PC를 바꾸면 이어지지 않는다.
 

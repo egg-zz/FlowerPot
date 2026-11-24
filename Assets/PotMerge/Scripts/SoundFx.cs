@@ -9,7 +9,7 @@ namespace PotMerge
         static GameObject host;
         static AudioSource[] voices;
         static int nextVoice;
-        static AudioClip pop, merge, swap, coin, error, tap, unlock;
+        static AudioClip pop, merge, swap, coin, error, tap, unlock, step, bell;
 
         public static void Pop() => Play(pop, 1f + Random.Range(-0.05f, 0.05f), 0.55f);
         public static void Swap() => Play(swap, 1f, 0.5f);
@@ -17,6 +17,10 @@ namespace PotMerge
         public static void Error() => Play(error, 1f, 0.5f);
         public static void Tap() => Play(tap, 1f, 0.5f);
         public static void Unlock() => Play(unlock, 1f, 0.6f);
+        /// <summary>Soft footstep of a customer.</summary>
+        public static void Step() => Play(step, 1f + Random.Range(-0.08f, 0.08f), 0.5f);
+        /// <summary>Door bell: a customer comes in.</summary>
+        public static void Bell() => Play(bell, 1f, 0.5f);
         /// <summary>Merge chime, pitched up a little with each level.</summary>
         public static void Merge(int level) => Play(merge, Mathf.Pow(2f, (Mathf.Clamp(level, 1, 11) - 2) / 12f * 1.5f), 0.6f);
 
@@ -43,6 +47,8 @@ namespace PotMerge
                 voices[i].spatialBlend = 0f;
             }
 
+            step = Make("step", 0.11f, (t, d) => Sine(Lerp(190f, 90f, t / d), t) * Env(t, d, 0.004f));
+            bell = Make("bell", 0.8f, (t, d) => (Sine(1568f, t) * 0.5f + Sine(2349f, t) * 0.25f + (t > 0.16f ? Sine(1318f, t) * 0.5f * Mathf.Exp(-(t - 0.16f) * 5f) : 0f)) * Mathf.Exp(-t * 4f) * Env(t, d, 0.002f));
             pop = Make("pop", 0.12f, (t, d) => Sine(Lerp(520f, 900f, t / d), t) * Env(t, d, 0.005f));
             swap = Make("swap", 0.09f, (t, d) => Tri(Lerp(700f, 420f, t / d), t) * Env(t, d, 0.004f) * 0.8f);
             tap = Make("tap", 0.05f, (t, d) => Sine(1200f, t) * Env(t, d, 0.002f) * 0.7f);

@@ -34,6 +34,8 @@ namespace PotMerge
         public class Level
         {
             public LevelGoal[] goals;
+            [Tooltip("Bonus orders (not needed to clear), one customer after another: \"C3 B4\" = Cafe 3 + Bakery 4")]
+            public string[] orders;
             [Tooltip("Time limit in seconds. 0 = no time limit (tutorial levels 1-9)")]
             public int seconds = 60;
             [Tooltip("Item boxes: \"F 0 0; C 2 0; B 4 0; I 6 0\". Empty = the default bottom row")]
@@ -80,10 +82,37 @@ namespace PotMerge
             return list;
         }
 
+        /// <summary>"C3 B4" -> (Cafe, 3), (Bakery, 4).</summary>
+        public static List<(int chain, int level)> ParseOrder(string s)
+        {
+            var list = new List<(int, int)>();
+            if (string.IsNullOrWhiteSpace(s)) return list;
+            foreach (var t in s.Split(new[] { (char)32 }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                int chain = ChainLetters.IndexOf(char.ToUpperInvariant(t[0]));
+                if (chain >= 0 && int.TryParse(t.Substring(1), out int lv)) list.Add((chain, lv));
+            }
+            return list;
+        }
+
+        /// <summary>How many level-1 items the order is worth.</summary>
+        public static int OrderUnits(List<(int chain, int level)> order)
+        {
+            int units = 0;
+            foreach (var o in order) units += 1 << (o.level - 1);
+            return units;
+        }
+
+        /// <summary>1-5 coins by difficulty: worth up to 4 / 8 / 12 / 16 / more level-1 items.</summary>
+        public static int OrderReward(List<(int chain, int level)> order)
+        {
+            return Mathf.Clamp((OrderUnits(order) + 3) / 4, 1, 5);
+        }
+
         static LevelGoal Merge(int count, int chain = -1) => new LevelGoal { type = GoalType.MergeAny, chain = chain, count = count };
         static LevelGoal Make(int chain, int level) => new LevelGoal { type = GoalType.MakeItem, chain = chain, level = level, count = 1 };
 
-        /// <summary>Levels 1-9: tutorial-like, no time limit. 10-14: the timer appears. Orders come at 15, board blockers at 25.</summary>
+        /// <summary>Levels 1-9: tutorial-like, no time limit. 10-14: the timer appears. 15-24: bonus hamster orders (15-17 untimed, to learn delivering). Board blockers come at 25.</summary>
         public static Level[] DefaultLevels() => new[]
         {
             // 1: tutorial, one pair
@@ -130,6 +159,28 @@ namespace PotMerge
             // 14: ice cream merges + a Double Scoop (Ice Cream 5)
             new Level { goals = new[] { Merge(8, 3), Make(3, 5) }, seconds = 110,
                 startItems = "I2 1 2; I2 5 2; I3 3 5; I1 2 4; I1 4 4; F1 0 3; C1 6 3" },
+
+            // ---- 15-24: goals plus bonus orders (customers walk in, not needed to clear) ----
+            new Level { goals = new[] { Merge(8), Make(0, 4) }, orders = new[] { "F3" }, seconds = 0,
+                startItems = "F2 2 3; F2 4 3" },
+            new Level { goals = new[] { Make(1, 5) }, orders = new[] { "C3 B3" }, seconds = 0,
+                startItems = "C2 1 4; C1 5 4; B1 3 5" },
+            new Level { goals = new[] { Merge(10), Make(2, 5) }, orders = new[] { "C4", "I3" }, seconds = 0,
+                startItems = "C2 1 4; C1 5 4; I1 3 5" },
+            new Level { goals = new[] { Merge(15), Make(3, 4) }, orders = new[] { "C3 B4", "F4" }, seconds = 110,
+                startItems = "C2 1 4; B2 5 4; F1 3 5" },
+            new Level { goals = new[] { Merge(15), Make(0, 5) }, orders = new[] { "F4 I4", "B3 B3" }, seconds = 120,
+                startItems = "F2 1 4; I2 5 4; B1 2 5; B1 4 5" },
+            new Level { goals = new[] { Make(1, 6) }, orders = new[] { "C4", "B4" }, seconds = 130,
+                startItems = "C3 1 4; C3 5 4; C2 2 3; B2 3 5" },
+            new Level { goals = new[] { Merge(25) }, orders = new[] { "I4 F4" }, seconds = 120,
+                startItems = "I2 1 4; F2 5 4" },
+            new Level { goals = new[] { Make(2, 5), Make(3, 5) }, orders = new[] { "F4 C4", "B4 I4" }, seconds = 150,
+                startItems = "F2 1 4; C2 5 4; B2 2 5; I2 4 5" },
+            new Level { goals = new[] { Merge(20), Make(-1, 6) }, orders = new[] { "B5", "C4 I3" }, seconds = 150,
+                startItems = "B2 1 4; B2 5 4; C1 2 5; I1 4 5" },
+            new Level { goals = new[] { Make(0, 6), Make(1, 5) }, orders = new[] { "F5 C4", "B4 I4" }, seconds = 180,
+                startItems = "F3 1 4; F3 5 4; F2 3 3; C3 2 5; B2 4 5; I2 4 2" },
         };
 
         [ContextMenu("Reset To Default Levels")]

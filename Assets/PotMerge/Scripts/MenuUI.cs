@@ -48,7 +48,7 @@ namespace PotMerge
         Label startLabel;
         Label homeHearts;
         Label homeHeartTime;
-        Label homeEnergy;
+        Label homeEnergy, homeEnergyTime;
         bool heartsOpen;
         bool energyOpen;
 
@@ -193,7 +193,7 @@ namespace PotMerge
             lives.style.left = 0; lives.style.top = 108;
             lives.style.flexDirection = FlexDirection.Row;
             lives.Add(hearts);
-            var energy = EnergyPill(out homeEnergy, OpenEnergy);
+            var energy = EnergyPill(out homeEnergy, out homeEnergyTime, OpenEnergy);
             energy.style.marginLeft = 16;
             energy.style.paddingTop = 8; energy.style.paddingBottom = 8;
             lives.Add(energy);
@@ -318,7 +318,7 @@ namespace PotMerge
             int h = PlayerData.Hearts;
             homeHearts.text = h.ToString();
             homeHeartTime.text = h >= PlayerData.MaxHearts ? "FULL" : Clock(PlayerData.HeartRemaining);
-            if (homeEnergy != null) homeEnergy.text = PlayerData.Energy.ToString();
+            if (homeEnergy != null) { homeEnergy.text = PlayerData.Energy.ToString(); homeEnergyTime.text = EnergyClock(); }
         }
 
         // ------------------------------------------------------------------ energy
@@ -924,7 +924,9 @@ namespace PotMerge
                 bool owned = PlayerData.OwnsCostume(c.id);
                 bool wearing = PlayerData.Equipped(c.slot) == c.id;
                 Button btn;
-                if (owned)
+                if (c.comingSoon)
+                    btn = BigButton("SOON", 230, 96, 32, Disabled, DisabledDark, () => SoundFx.Error());
+                else if (owned)
                 {
                     btn = BigButton(wearing ? "WEARING" : "WEAR", 230, 96, 32,
                         wearing ? Green : new Color(0.40f, 0.70f, 0.95f), wearing ? GreenDark : new Color(0.25f, 0.50f, 0.78f),

@@ -23,6 +23,8 @@ namespace PotMerge
             public int price;
             public GameObject model;
             public Texture2D icon;
+            [Tooltip("Shown in the shop and on customers, but not for sale yet")]
+            public bool comingSoon;
         }
 
         public GameObject hamsterModel;

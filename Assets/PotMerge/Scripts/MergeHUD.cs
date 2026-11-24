@@ -8,7 +8,7 @@ namespace PotMerge
 {
     /// <summary>Runtime-built UI Toolkit HUD for the game screen: coins/jewels/energy, home/settings, level goals and timer, result cards, toasts and floating texts.</summary>
     [RequireComponent(typeof(UIDocument))]
-    public class MergeHUD : MonoBehaviour
+    public partial class MergeHUD : MonoBehaviour
     {
         public event Action HomeClicked;
         public event Action SettingsClicked;
@@ -20,7 +20,7 @@ namespace PotMerge
         public event Action GiveUpHomeClicked;
         public event Action ClearHomeClicked;
 
-        public struct GoalView { public string text; public Texture2D icon; public int progress; public int target; }
+        public struct GoalView { public string text; public Texture2D icon; public int progress; public int target; public bool bonus; }
 
         // level widgets
         Label levelLabel;
@@ -34,7 +34,7 @@ namespace PotMerge
         VisualElement fxLayer;
         Label coinLabel;
         Label jewelLabel;
-        Label energyLabel;
+        Label energyLabel, energyTimer;
         float energyTick;
         Label toast;
         float toastTimer;
@@ -71,7 +71,7 @@ namespace PotMerge
             jewelPill.style.marginLeft = 16;
             jewelPill.style.minWidth = 150;
             coinPill.Add(jewelPill);
-            var energyPill = EnergyPill(out energyLabel, () => EnergyClicked?.Invoke());
+            var energyPill = EnergyPill(out energyLabel, out energyTimer, () => EnergyClicked?.Invoke());
             energyPill.style.marginLeft = 16;
             coinPill.Add(energyPill);
 
@@ -110,7 +110,7 @@ namespace PotMerge
             // ---------- level: goals (left), level + timer (right) ----------
             goalCard = new VisualElement { pickingMode = PickingMode.Ignore };
             goalCard.style.position = Position.Absolute;
-            goalCard.style.left = 30; goalCard.style.top = 210;
+            goalCard.style.left = 30; goalCard.style.top = 236;
             goalCard.style.width = 290;
             goalCard.style.backgroundColor = new Color(1f, 0.98f, 0.93f, 0.92f);
             Round(goalCard, 44);
@@ -119,7 +119,7 @@ namespace PotMerge
 
             var rightCol = new VisualElement { pickingMode = PickingMode.Ignore };
             rightCol.style.position = Position.Absolute;
-            rightCol.style.right = 30; rightCol.style.top = 210;
+            rightCol.style.right = 30; rightCol.style.top = 236;
             rightCol.style.width = 260;
             rightCol.style.alignItems = Align.Center;
             levelLabel = MakeLabel("LEVEL 1", 44, Color.white);
@@ -155,6 +155,7 @@ namespace PotMerge
             ownerPortrait.style.display = DisplayStyle.None;
 
             root.Add(ownerPortrait);
+            BuildOrders();
             root.Add(top);
             root.Add(goalCard);
             root.Add(rightCol);
@@ -224,7 +225,7 @@ namespace PotMerge
                     img.style.backgroundImage = new StyleBackground(g.icon);
                     row.Add(img);
                 }
-                else row.Add(Icon(IconShape.Star, 52, Gold));
+                else row.Add(g.bonus ? CoinIcon(52, 0) : Icon(IconShape.Star, 52, Gold));
                 var col = new VisualElement { pickingMode = PickingMode.Ignore };
                 col.style.marginLeft = 10;
                 col.style.flexShrink = 1;
@@ -290,10 +291,13 @@ namespace PotMerge
             card.Add(rew);
             if (coins == 0 && jewels == 0)
             {
-                var note = MakeLabel("Coins are for the first clear", 30, InkSoft);
+                var note = MakeLabel("Rewards are for the first clear", 30, InkSoft);
                 note.style.marginBottom = 30;
                 card.Add(note);
             }
+
+            var customer = orderVisible ? FindAnyObjectByType<OrderBar>() : null;
+            if (customer != null && customer.Outfit.Count > 0) card.Add(CostumeTeaser(customer.Outfit[0]));
 
             var btns = Row();
             var home = BigButton("HOME", 300, 140, 50, Pink, PinkDark, () => ClearHomeClicked?.Invoke());
@@ -377,6 +381,7 @@ namespace PotMerge
             coinLabel.text = Format(coins);
             jewelLabel.text = Format(PlayerData.Jewels);
             energyLabel.text = PlayerData.Energy.ToString();
+            energyTimer.text = EnergyClock();
             if (punch) coinPunch = 1f;
         }
 
@@ -432,8 +437,9 @@ namespace PotMerge
                 toast.style.scale = new Scale(new Vector3(s, s, 1f));
             }
 
-            energyTick += Time.unscaledDeltaTime;
-            if (energyTick >= 1f) { energyTick = 0f; energyLabel.text = PlayerData.Energy.ToString(); }
+            AnimateOrders();
+            energyTick += Time.unscaledDeltaTime * 4f;
+            if (energyTick >= 1f) { energyTick = 0f; energyLabel.text = PlayerData.Energy.ToString(); energyTimer.text = EnergyClock(); }
 
             if (timerPulse > 0f)
             {
