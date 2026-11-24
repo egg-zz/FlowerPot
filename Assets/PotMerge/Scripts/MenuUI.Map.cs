@@ -106,6 +106,7 @@ namespace PotMerge
             ClosePopups();
             Show(titleLayer, false);
             Show(homeLayer, false);
+            Show(townLayer, false);
             Show(mapLayer, true);
             RebuildMap();
         }

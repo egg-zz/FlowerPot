@@ -62,6 +62,9 @@ namespace PotMerge
             root.gameObject.SetActive(showing);
         }
 
+        /// <summary>Sideways camera offset while moving to or from the town.</summary>
+        public float Pan { get; set; }
+
         float homeBlend, homeTarget;
 
         /// <summary>Takes over the camera and shows the diorama (title framing, or home framing).</summary>
@@ -123,7 +126,7 @@ namespace PotMerge
             cam.fieldOfView = FovForAspect();
             float yaw = Mathf.Sin(t * 0.35f) * swayDegrees;
             var rot = Quaternion.Euler(pitch, yaw, 0f);
-            cam.transform.position = offset + Quaternion.Euler(0f, yaw, 0f) * local;
+            cam.transform.position = offset + Quaternion.Euler(0f, yaw, 0f) * local + Vector3.right * Pan;
             cam.transform.rotation = rot;
         }
     }

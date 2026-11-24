@@ -103,10 +103,10 @@ namespace PotMerge
             return units;
         }
 
-        /// <summary>1-5 coins by difficulty: worth up to 4 / 8 / 12 / 16 / more level-1 items.</summary>
+        /// <summary>10-30 coins by difficulty: 10 / 15 / 20 / 25 / 30 for orders worth up to 4 / 8 / 12 / 16 / more level-1 items.</summary>
         public static int OrderReward(List<(int chain, int level)> order)
         {
-            return Mathf.Clamp((OrderUnits(order) + 3) / 4, 1, 5);
+            return 5 + 5 * Mathf.Clamp((OrderUnits(order) + 3) / 4, 1, 5);
         }
 
         static LevelGoal Merge(int count, int chain = -1) => new LevelGoal { type = GoalType.MergeAny, chain = chain, count = count };

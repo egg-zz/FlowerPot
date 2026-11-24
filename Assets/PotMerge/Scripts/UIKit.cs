@@ -4,7 +4,7 @@ using UnityEngine.UIElements;
 
 namespace PotMerge
 {
-    public enum IconShape { Home, Gear, Book, Bag, Close, Check, Star, Gem, Gift, Play, Heart, Bolt, Lock, Clock }
+    public enum IconShape { Home, Gear, Book, Bag, Close, Check, Star, Gem, Gift, Play, Heart, Bolt, Lock, Clock, Town }
 
     /// <summary>Shared look for all runtime-built UI Toolkit screens (reference resolution 1080x1920).</summary>
     public static class UIKit
@@ -168,6 +168,24 @@ namespace PotMerge
                         p.LineTo(new Vector2(s * 0.05f, s * 0.5f));
                         p.ClosePath();
                         p.Fill();
+                        break;
+                    case IconShape.Town: // a shop: awning with scallops, wall with a door
+                        p.BeginPath();
+                        p.MoveTo(new Vector2(s * 0.18f, s * 0.12f)); p.LineTo(new Vector2(s * 0.82f, s * 0.12f));
+                        p.LineTo(new Vector2(s * 0.97f, s * 0.42f)); p.LineTo(new Vector2(s * 0.03f, s * 0.42f));
+                        p.ClosePath(); p.Fill();
+                        for (int i = 0; i < 4; i++)
+                        {
+                            p.BeginPath();
+                            p.Arc(new Vector2(s * (0.1475f + 0.235f * i), s * 0.42f), s * 0.1175f, 0f, 180f);
+                            p.ClosePath(); p.Fill();
+                        }
+                        p.BeginPath();
+                        p.MoveTo(new Vector2(s * 0.13f, s * 0.60f)); p.LineTo(new Vector2(s * 0.87f, s * 0.60f));
+                        p.LineTo(new Vector2(s * 0.87f, s * 0.93f)); p.LineTo(new Vector2(s * 0.74f, s * 0.93f));
+                        p.LineTo(new Vector2(s * 0.74f, s * 0.68f)); p.LineTo(new Vector2(s * 0.54f, s * 0.68f));
+                        p.LineTo(new Vector2(s * 0.54f, s * 0.93f)); p.LineTo(new Vector2(s * 0.13f, s * 0.93f));
+                        p.ClosePath(); p.Fill();
                         break;
                     case IconShape.Gear:
                     {

@@ -5,9 +5,11 @@ using UnityEngine;
 namespace PotMerge
 {
     /// <summary>
-    /// Hamster orders (level 15+) are bonus quests: the level is cleared by its goals alone. Now and then a customer walks in
-    /// and asks for 1-3 items; drag exactly those (same chain and level) onto them for 1-5 coins by difficulty.
-    /// In timed levels a customer who waits too long leaves again.
+    /// Hamster orders (level 15+) are bonus quests: the level is cleared by its goals alone, but when the goals are done first,
+    /// the customers still to come may be served in "bonus time" (until they leave, time runs out or the player taps FINISH).
+    /// Now and then a customer walks in
+    /// and asks for 1-3 items; drag exactly those (same chain and level) onto them for 10-30 coins by difficulty and 3 energy.
+    /// A customer who waits too long leaves again.
     /// </summary>
     public partial class MergeBoard
     {
@@ -29,7 +31,7 @@ namespace PotMerge
 
         CustomerPhase phase;
         float phaseTime;         // seconds left in the phase (patience while Open)
-        float patienceTotal;     // 0 = waits forever (untimed levels)
+        float patienceTotal;     
         int orderIndex, ordersServed;
         bool anyDelivered;
         readonly List<(int chain, int level)> orderItems = new List<(int, int)>();
@@ -61,8 +63,10 @@ namespace PotMerge
             hud?.HideDeliverGhost();
             hud?.HideOrderBubble();
             hud?.SetOrderLayout(OrderCount > 0);
+            hud?.SetLevelStars(OrderCount > 0 ? OrderStars : 0);
+            hud?.ShowFinish(false);
             OrdersReset?.Invoke();
-            if (OrderCount > 0) WaitForCustomer(UnityEngine.Random.Range(5f, 9f));
+            if (OrderCount > 0) WaitForCustomer(UnityEngine.Random.Range(2f, 4f));
         }
 
         void WaitForCustomer(float seconds)
@@ -77,10 +81,47 @@ namespace PotMerge
             orderDone.Clear();
             orderItems.AddRange(LevelDatabase.ParseOrder(level.orders[orderIndex]));
             foreach (var _ in orderItems) orderDone.Add(false);
-            patienceTotal = Timed ? 30f + 1.5f * LevelDatabase.OrderUnits(orderItems) : 0f;
+            int units = LevelDatabase.OrderUnits(orderItems);
+            patienceTotal = Timed ? 30f + 1.5f * units : 60f + 2f * units;
             phase = CustomerPhase.Open;
             phaseTime = patienceTotal;
             RefreshOrder();
+        }
+
+        /// <summary>1 star for the goals, up to 3 when every customer was served.</summary>
+        int OrderStars => OrderCount > 0 ? 1 + 2 * ordersServed / OrderCount : 1;
+
+        /// <summary>A customer is here or still to come who is worth serving: the order pays, or more stars than before are possible.</summary>
+        bool BonusLeft
+        {
+            get
+            {
+                if (OrderCount == 0 || phase == CustomerPhase.None) return false;
+                int next = orderIndex + (phase == CustomerPhase.Served ? 1 : 0);
+                if (1 + 2 * (ordersServed + OrderCount - next) / OrderCount > Mathf.Max(OrderStars, PlayerData.Stars(levelNumber))) return true;
+                for (int i = next; i < OrderCount; i++)
+                    if (PlayerData.OrderPays(levelNumber, i)) return true;
+                return false;
+            }
+        }
+
+        /// <summary>All goals are done. Clears the level (true), or starts bonus time while customers can still be served.</summary>
+        bool GoalsReached()
+        {
+            if (bonusTime) return false;
+            clearTimeLeft = timeLeft;
+            if (!BonusLeft) { Clear(); return true; }
+            bonusTime = true;
+            if (phase == CustomerPhase.Waiting) phaseTime = Mathf.Min(phaseTime, 0.5f);
+            SoundFx.Unlock();
+            hud?.ShowToast("GOALS DONE! BONUS TIME", new Color(0.7f, 1f, 0.7f));
+            hud?.ShowFinish(true);
+            return false;
+        }
+
+        void FinishBonus()
+        {
+            if (bonusTime && busyMerges == 0) Clear();
         }
 
         void LeaveCustomer()
@@ -104,11 +145,11 @@ namespace PotMerge
                     done = orderDone[i],
                     ready = !orderDone[i] && FindOnBoard(orderItems[i].chain, orderItems[i].level) != null
                 });
-            hud.SetOrder(views, OrderPays ? LevelDatabase.OrderReward(orderItems) : 0);
+            hud.SetOrder(views, OrderPays ? LevelDatabase.OrderReward(orderItems) : 0, PlayerData.OrderEnergy);
         }
 
-        /// <summary>Like the clear reward, orders pay until the level is cleared for the first time.</summary>
-        bool OrderPays => levelNumber >= PlayerData.LevelReached;
+        /// <summary>Orders pay once each, until the level is cleared for the first time.</summary>
+        bool OrderPays => PlayerData.OrderPays(levelNumber, orderIndex);
 
         PotItem FindOnBoard(int chain, int lv)
         {
@@ -162,13 +203,15 @@ namespace PotMerge
             int coins = OrderPays ? LevelDatabase.OrderReward(orderItems) : 0;
             if (coins > 0)
             {
-                PlayerData.AddCoins(coins);
-                hud?.ShowToast($"BONUS ORDER! +{coins}", new Color(1f, 0.85f, 0.3f));
+                int energy = PlayerData.PayOrder(levelNumber, orderIndex, coins);
+                hud?.ShowToast(energy > 0 ? $"BONUS! +{coins} COINS, +{energy} ENERGY" : $"BONUS! +{coins} COINS", new Color(1f, 0.85f, 0.3f));
                 hud?.SetCoins(Coins, true);
                 SoundFx.Coin();
             }
             else hud?.ShowToast("ORDER DONE!", Color.white);
             ordersServed++;
+            PlayerData.OnOrderServed();
+            hud?.SetLevelStars(OrderStars);
             phase = CustomerPhase.Served;
             phaseTime = ServedSeconds;
             RefreshGoals();
@@ -183,7 +226,7 @@ namespace PotMerge
             int mode = 0;
             if (dragging != null && OverCustomer(Input.mousePosition)) mode = WantedSlot(dragging) >= 0 ? 1 : 2;
             hud.SetDeliveryHighlight(mode);
-            hud.SetPatience(OrderOpen && patienceTotal > 0f ? Mathf.Clamp01(phaseTime / patienceTotal) : -1f);
+            hud.SetPatience(OrderOpen && patienceTotal > 0f ? Mathf.Clamp01(phaseTime / patienceTotal) : -1f, phaseTime);
 
             PotItem show = null;
             if (levelNumber == DeliverTutorialLevel && !anyDelivered && dragging == null && !OrdersPaused)
@@ -219,7 +262,8 @@ namespace PotMerge
                     LeaveCustomer();
                     break;
                 case CustomerPhase.Leaving:
-                    WaitForCustomer(UnityEngine.Random.Range(7f, 12f));
+                    if (bonusTime && !BonusLeft) { phase = CustomerPhase.None; Clear(); break; }
+                    WaitForCustomer(bonusTime ? 0.5f : UnityEngine.Random.Range(6f, 10f));
                     break;
             }
         }

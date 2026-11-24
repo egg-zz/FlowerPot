@@ -1,0 +1,226 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 31648af06db0ee84a9f8be29527a2c05, type: 3}
+  m_Name: TownDatabase
+  m_EditorClassIdentifier: Assembly-CSharp::PotMerge.TownDatabase
+  items:
+  - id: wood_sign
+    displayName: Wood Sign
+    shop: 0
+    reward: 0
+    currency: 0
+    price: 60
+    position: {x: 1.75, y: -1.5}
+    yaw: 0
+    model: {fileID: 919132149155446097, guid: 113259a301a29c747a1af96a20ca3ae2, type: 3}
+    icon: {fileID: 2800000, guid: dba7e4165836e8c44ab11e7e747c150e, type: 3}
+  - id: pot_cart
+    displayName: Pot Cart
+    shop: 0
+    reward: 0
+    currency: 0
+    price: 100
+    position: {x: -1.3, y: -2.7}
+    yaw: 0
+    model: {fileID: 919132149155446097, guid: 03a887ca04adcca498e80e8cff7be648, type: 3}
+    icon: {fileID: 2800000, guid: 2b68c24ec76563d4ca66251b761660f9, type: 3}
+  - id: flower_lamp
+    displayName: Flower Lamp
+    shop: 0
+    reward: 0
+    currency: 0
+    price: 160
+    position: {x: 1.7, y: -3}
+    yaw: 0
+    model: {fileID: 919132149155446097, guid: 333ef857887721a4b9ab8e1d9063eb23, type: 3}
+    icon: {fileID: 2800000, guid: 364897adadf924e4f8ac4fb974160a0f, type: 3}
+  - id: flower_arch
+    displayName: Flower Arch
+    shop: 0
+    reward: 0
+    currency: 0
+    price: 240
+    position: {x: 0.45, y: -2.1}
+    yaw: 0
+    model: {fileID: 919132149155446097, guid: 6fa7b14137ca57347a38321a9bb746cb, type: 3}
+    icon: {fileID: 2800000, guid: 9e09662bf7105404eba9e0febbec3bc9, type: 3}
+  - id: flower_clock
+    displayName: Flower Clock
+    shop: 0
+    reward: 1
+    currency: 0
+    price: 0
+    position: {x: -2.3, y: 3}
+    yaw: 15
+    model: {fileID: 919132149155446097, guid: 6b95364e5504a9346b572b900d7e81d7, type: 3}
+    icon: {fileID: 2800000, guid: a769a7036cadda245881753e6d89c41d, type: 3}
+  - id: bean_sack
+    displayName: Bean Sack
+    shop: 1
+    reward: 0
+    currency: 0
+    price: 80
+    position: {x: 1.6, y: -1.7}
+    yaw: 0
+    model: {fileID: 919132149155446097, guid: 4d2496989ee23a142a8d688da1f08719, type: 3}
+    icon: {fileID: 2800000, guid: c3a00a180eececb4082660377440f124, type: 3}
+  - id: cup_sign
+    displayName: Cup Sign
+    shop: 1
+    reward: 0
+    currency: 0
+    price: 120
+    position: {x: 1.75, y: -3}
+    yaw: 0
+    model: {fileID: 919132149155446097, guid: 88445a3771a9e1f43bacb63a793d2789, type: 3}
+    icon: {fileID: 2800000, guid: 94ed35de7d0a0684fa86947d338afc8c, type: 3}
+  - id: parasol_table
+    displayName: Parasol Table
+    shop: 1
+    reward: 0
+    currency: 0
+    price: 200
+    position: {x: -1.2, y: -2.6}
+    yaw: 0
+    model: {fileID: 919132149155446097, guid: 7e3a0151df0c01d4b807609e3dc24894, type: 3}
+    icon: {fileID: 2800000, guid: f1149175248cb3b4d81dbf0cb8a7bab2, type: 3}
+  - id: string_lights
+    displayName: String Lights
+    shop: 1
+    reward: 0
+    currency: 1
+    price: 8
+    position: {x: 0.1, y: -1.95}
+    yaw: 0
+    model: {fileID: 919132149155446097, guid: 9708ae58b06d2de42aa5f9a830af67aa, type: 3}
+    icon: {fileID: 2800000, guid: 88fdd7fad707a96479687916ffcb7e75, type: 3}
+  - id: coffee_fountain
+    displayName: Coffee Fountain
+    shop: 1
+    reward: 1
+    currency: 0
+    price: 0
+    position: {x: 2.3, y: 3}
+    yaw: -15
+    model: {fileID: 919132149155446097, guid: 5002336332f285746952034e8838ea4e, type: 3}
+    icon: {fileID: 2800000, guid: 8ce5bc9cf4756154786e608cd86ac9bf, type: 3}
+  - id: lantern
+    displayName: Lantern
+    shop: 2
+    reward: 0
+    currency: 0
+    price: 80
+    position: {x: 1.7, y: -3}
+    yaw: 0
+    model: {fileID: 919132149155446097, guid: 3f808d4e59ee2fe479fbbc9f4cd684ed, type: 3}
+    icon: {fileID: 2800000, guid: e15918ff261105d4f86479f20a040cdf, type: 3}
+  - id: pretzel_sign
+    displayName: Pretzel Sign
+    shop: 2
+    reward: 0
+    currency: 0
+    price: 120
+    position: {x: 1.75, y: -1.5}
+    yaw: 0
+    model: {fileID: 919132149155446097, guid: 7126ab033c8de834aad3c36d4d26b5c8, type: 3}
+    icon: {fileID: 2800000, guid: a98f66f9a6eb7cd48a42253eb20adeca, type: 3}
+  - id: bread_stand
+    displayName: Bread Stand
+    shop: 2
+    reward: 0
+    currency: 0
+    price: 200
+    position: {x: -1.2, y: -2.6}
+    yaw: 0
+    model: {fileID: 919132149155446097, guid: 5a82dd8468754ce4dac41aef5ccf31f2, type: 3}
+    icon: {fileID: 2800000, guid: e14557a01962daf41a1a4557abf82e8d, type: 3}
+  - id: stone_oven
+    displayName: Stone Oven
+    shop: 2
+    reward: 0
+    currency: 0
+    price: 300
+    position: {x: 0.5, y: -2.3}
+    yaw: 0
+    model: {fileID: 919132149155446097, guid: 1fd1f70c85e0eb244bbe8badfd7c7268, type: 3}
+    icon: {fileID: 2800000, guid: 1f36f3374f02e7842b01f6a95839c2da, type: 3}
+  - id: cake_tower
+    displayName: Cake Tower
+    shop: 2
+    reward: 1
+    currency: 0
+    price: 0
+    position: {x: -1.55, y: -1.5}
+    yaw: 0
+    model: {fileID: 919132149155446097, guid: 7d5c2701c20070647845143bc0e97724, type: 3}
+    icon: {fileID: 2800000, guid: ba4d50f65f1378f4d966c4c1384588cf, type: 3}
+  - id: candy_lamp
+    displayName: Candy Lamp
+    shop: 3
+    reward: 0
+    currency: 1
+    price: 8
+    position: {x: 1.7, y: -3}
+    yaw: 0
+    model: {fileID: 919132149155446097, guid: 71afdb6b7b4013f4b8c6deababcd8b4f, type: 3}
+    icon: {fileID: 2800000, guid: 8af6b0ef2a8555d40b5dc698919f29fe, type: 3}
+  - id: cone_sign
+    displayName: Cone Sign
+    shop: 3
+    reward: 0
+    currency: 0
+    price: 120
+    position: {x: 1.75, y: -1.5}
+    yaw: 0
+    model: {fileID: 919132149155446097, guid: 8542255dfdea416429f5793830acacf5, type: 3}
+    icon: {fileID: 2800000, guid: 6e2df204c9a254f42b1f66b62a880e05, type: 3}
+  - id: cone_bench
+    displayName: Cone Bench
+    shop: 3
+    reward: 0
+    currency: 0
+    price: 200
+    position: {x: 0.4, y: -2.2}
+    yaw: 0
+    model: {fileID: 919132149155446097, guid: e0a230119825f694d975c57e0083ec8c, type: 3}
+    icon: {fileID: 2800000, guid: 4d173f4a085cb194cbfa34ef54eaff37, type: 3}
+  - id: ice_cart
+    displayName: Ice Cream Cart
+    shop: 3
+    reward: 0
+    currency: 0
+    price: 300
+    position: {x: -1.2, y: -2.8}
+    yaw: 0
+    model: {fileID: 919132149155446097, guid: 6ac06daa17f6d484a823e33e54d033fe, type: 3}
+    icon: {fileID: 2800000, guid: e23df0077c8298647a52ac3e18101ae8, type: 3}
+  - id: ice_slide
+    displayName: Ice Cream Slide
+    shop: 3
+    reward: 1
+    currency: 0
+    price: 0
+    position: {x: 1.75, y: -1.2}
+    yaw: 0
+    model: {fileID: 919132149155446097, guid: 114a290696982f942b0ea6e9b23f0ad1, type: 3}
+    icon: {fileID: 2800000, guid: c45ddc25e565bb646ba078908989721b, type: 3}
+  - id: hamster_fountain
+    displayName: Golden Hamster
+    shop: 4
+    reward: 1
+    currency: 0
+    price: 0
+    position: {x: 0, y: 1.2}
+    yaw: 0
+    model: {fileID: 919132149155446097, guid: 2c73cbcbd6bdcb440a5aa661d2944752, type: 3}
+    icon: {fileID: 2800000, guid: c248b74293968bd4b952533e961f3356, type: 3}
+  plazaModel: {fileID: 919132149155446097, guid: 526614e8c96c4a045a9fe7cd84365524, type: 3}

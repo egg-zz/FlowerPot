@@ -225,7 +225,7 @@ namespace PotMerge
                     img.style.backgroundImage = new StyleBackground(g.icon);
                     row.Add(img);
                 }
-                else row.Add(g.bonus ? CoinIcon(52, 0) : Icon(IconShape.Star, 52, Gold));
+                else row.Add(g.bonus ? Icon(IconShape.Gift, 52, Pink) : Icon(IconShape.Star, 52, Gold));
                 var col = new VisualElement { pickingMode = PickingMode.Ignore };
                 col.style.marginLeft = 10;
                 col.style.flexShrink = 1;
@@ -348,9 +348,6 @@ namespace PotMerge
                 card.Add(jw);
             }
 
-            var heartNote = MakeLabel("Giving up costs 1 heart", 30, InkSoft);
-            heartNote.style.marginTop = 36;
-            card.Add(heartNote);
             var btns = Row();
             btns.style.marginTop = 18;
             var home = BigButton("HOME", 330, 130, 46, Pink, PinkDark, () => GiveUpHomeClicked?.Invoke());

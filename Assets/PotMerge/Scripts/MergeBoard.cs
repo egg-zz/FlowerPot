@@ -14,8 +14,8 @@ namespace PotMerge
     ///    4 item boxes (one per chain) standing on board cells. Tapping a box costs 1 energy and drops a level 1-2 item
     ///    (1-3 from level 25, when board blockers start)
     ///    of that chain into the nearest empty cell. Boxes can be dragged around but never merge.
-    ///  - All goals done = clear (1-3 stars by time left). Time up or board full with no merge = fail. Giving up a failed
-    ///    level costs a heart; time up can be extended with an ad or jewels.
+    ///  - All goals done = clear (1-3 stars: by customers served in order levels, otherwise by time left). Time up or board full with no merge = fail;
+    ///    time up can be extended with an ad or jewels.
     /// A level in progress is kept in memory while the player visits the home screen; it is not saved to disk.
     /// </summary>
     public partial class MergeBoard : MonoBehaviour
@@ -75,8 +75,6 @@ namespace PotMerge
         public event Action Unlocked;
         /// <summary>Raised when the player leaves a decided level from a result popup (go to the home screen).</summary>
         public event Action LeaveRequested;
-        /// <summary>Raised when the player wants to play on but has no hearts left.</summary>
-        public event Action NeedHearts;
         /// <summary>Raised when a box is tapped without enough energy.</summary>
         public event Action NeedEnergy;
 
@@ -102,6 +100,8 @@ namespace PotMerge
         int[] goalProgress = new int[0];
         bool extended;   // bought extra time: the clear is worth 1 star
         bool failTimeUp;
+        bool bonusTime;      // goals are done, customers may still be served
+        float clearTimeLeft; // time left when the goals were done (decides the stars)
 
         int MaxLevel => database != null ? database.MaxLevel : 0;
         int ChainCount => database != null ? Mathf.Min(database.ChainCount, PlayerData.ChainCount) : 0;
@@ -131,6 +131,7 @@ namespace PotMerge
                 hud.MoreTimeJewelClicked += OnMoreTimeJewels;
                 hud.GiveUpHomeClicked += GiveUp;
                 hud.ClearHomeClicked += LeaveAfterClear;
+                hud.FinishClicked += FinishBonus;
             }
             PlayerData.Changed += OnPlayerDataChanged;
             if (PlayerPrefs.HasKey(OldSaveKey)) { PlayerPrefs.DeleteKey(OldSaveKey); PlayerPrefs.Save(); }
@@ -146,6 +147,7 @@ namespace PotMerge
                 hud.MoreTimeJewelClicked -= OnMoreTimeJewels;
                 hud.GiveUpHomeClicked -= GiveUp;
                 hud.ClearHomeClicked -= LeaveAfterClear;
+                hud.FinishClicked -= FinishBonus;
             }
             PlayerData.Changed -= OnPlayerDataChanged;
         }
@@ -216,6 +218,7 @@ namespace PotMerge
             state = LevelState.Playing;
             gameOver = false;
             extended = false;
+            bonusTime = false;
             timeLeft = def.seconds;
             goalProgress = new int[def.goals != null ? def.goals.Length : 0];
             hud?.HideResults();
@@ -242,6 +245,7 @@ namespace PotMerge
                 PlayerData.ReportItem(chain, lv);
                 d += 0.06f;
             }
+            PlayerData.OnLevelStarted();
             StartOrders();
             hud?.SetLevel(levelNumber);
             hud?.SetTimer(timeLeft, def.seconds);
@@ -268,7 +272,7 @@ namespace PotMerge
             if (state == LevelState.Playing && !InputBlocked)
             {
                 timeLeft = Mathf.Max(0f, timeLeft - Time.deltaTime);
-                if (timeLeft <= 0f && busyMerges == 0) Fail(true);
+                if (timeLeft <= 0f && busyMerges == 0) { if (bonusTime) Clear(); else Fail(true); }
             }
             hud?.SetTimer(timeLeft, level.seconds);
         }
@@ -288,12 +292,14 @@ namespace PotMerge
         {
             if (state != LevelState.Playing) return;
             state = LevelState.Cleared;
+            hud?.ShowFinish(false);
             gameOver = true;
             CancelDrag();
-            // untimed (tutorial) levels always give 3 stars
-            float frac = Timed ? timeLeft / level.seconds : 1f;
-            int stars = extended ? 1 : frac >= 0.5f ? 3 : frac >= 0.25f ? 2 : 1;
+            // order levels: 1 star for the goals, the rest for served customers. Others: by time left, untimed ones always 3
+            float frac = Timed ? (bonusTime ? clearTimeLeft : timeLeft) / level.seconds : 1f;
+            int stars = OrderCount > 0 ? OrderStars : extended ? 1 : frac >= 0.5f ? 3 : frac >= 0.25f ? 2 : 1;
             var reward = PlayerData.CompleteLevel(levelNumber, stars);
+            PlayerData.OnLevelCleared(stars, Timed);
             StartCoroutine(ShowClearSoon(stars, reward.coins, reward.jewels, reward.energy));
         }
 
@@ -304,20 +310,18 @@ namespace PotMerge
             hud?.ShowLevelClear(levelNumber, stars, coins, jewels, energy, levelNumber < levels.Count);
         }
 
-        /// <summary>Gives up a failed (or stuck) level: costs a heart.</summary>
+        /// <summary>Gives up a failed (or stuck) level.</summary>
         void LoseLevel()
         {
             if (state != LevelState.Failed && state != LevelState.Playing) return;
             state = LevelState.None;
             gameOver = false;
-            PlayerData.LoseHeart();
         }
 
         void GiveUpAndRetry()
         {
             LoseLevel();
             hud?.HideResults();
-            if (PlayerData.Hearts <= 0) { ClearBoard(); LeaveRequested?.Invoke(); NeedHearts?.Invoke(); return; }
             StartLevel(levelNumber);
         }
 
@@ -327,6 +331,15 @@ namespace PotMerge
             hud?.HideResults();
             ClearBoard();
             LeaveRequested?.Invoke();
+        }
+
+        public bool BonusTime => bonusTime && state == LevelState.Playing;
+
+        /// <summary>The player leaves a level in progress: it is lost. In bonus time the level is already won.</summary>
+        public void LeaveLevel()
+        {
+            if (state != LevelState.Playing) return;
+            if (bonusTime) Clear(); else GiveUp();
         }
 
         void LeaveAfterClear()
@@ -341,7 +354,6 @@ namespace PotMerge
         {
             hud?.HideResults();
             if (levelNumber >= levels.Count) { LeaveAfterClear(); return; }
-            if (PlayerData.Hearts <= 0) { LeaveAfterClear(); NeedHearts?.Invoke(); return; }
             StartLevel(levelNumber + 1);
         }
 
@@ -695,7 +707,7 @@ namespace PotMerge
             if (state == LevelState.Playing)
             {
                 ProgressGoals(chain, newLevel);
-                if (AllGoalsDone()) { hud?.SetCoins(Coins, true); Clear(); yield break; }
+                if (AllGoalsDone() && GoalsReached()) { hud?.SetCoins(Coins, true); yield break; }
             }
             RefreshState(true);
         }
@@ -736,7 +748,7 @@ namespace PotMerge
             if (PlayerData.ReportItem(box.Chain, lv)) { hud?.ShowToast("NEW! " + database.LevelName(box.Chain, lv), Color.white); Unlocked?.Invoke(); }
             PlayerData.OnAddItem();
             ProgressGoals(box.Chain, lv, false);
-            if (AllGoalsDone()) { Clear(); return; }
+            if (AllGoalsDone() && GoalsReached()) return;
             RefreshState();
         }
 
@@ -831,7 +843,7 @@ namespace PotMerge
             if (state != LevelState.Playing || busyMerges > 0) return;
             // board full and nothing to merge: the level is lost (boxes have nowhere to drop items)
             RefreshOrder();
-            if (!HasAnyMerge(out _, out _) && FreeCellCount() == 0 && !HasDeliverable()) Fail(false);
+            if (!HasAnyMerge(out _, out _) && FreeCellCount() == 0 && !HasDeliverable()) { if (bonusTime) Clear(); else Fail(false); }
         }
 
         void TickHint()

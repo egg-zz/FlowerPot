@@ -102,6 +102,7 @@ namespace PotMerge
         void OnDelivered(bool orderDone)
         {
             owner?.Cheer(8);
+            if (orderDone) PlayerData.AddTownGuest(Outfit.ConvertAll(c => c.id));
             if (orderDone) customer?.Cheer(8);
             else customer?.Smile(1.6f);
         }

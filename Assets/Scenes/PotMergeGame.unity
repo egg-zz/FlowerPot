@@ -1304,6 +1304,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e3885095e8de4d4499813c76326ea8d3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PotMerge.MenuUI
+  town: {fileID: 479780047}
   database: {fileID: 11400000, guid: c0644365ffe7b564ba5201ee08144e46, type: 2}
   board: {fileID: 745008899}
   costumes: {fileID: 11400000, guid: 23b75c19e06b7f24ea0c646797733921, type: 2}
@@ -1339,6 +1340,58 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 464333932}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &479780046
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 479780048}
+  - component: {fileID: 479780047}
+  m_Layer: 0
+  m_Name: Town
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &479780047
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 479780046}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b6e23a9e31a193b43a904c378b997a58, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PotMerge.TownScreen
+  town: {fileID: 11400000, guid: 7e6e764cd84a6cf469291991c3191088, type: 2}
+  database: {fileID: 11400000, guid: c0644365ffe7b564ba5201ee08144e46, type: 2}
+  costumes: {fileID: 11400000, guid: 23b75c19e06b7f24ea0c646797733921, type: 2}
+  offset: {x: 200, y: 0, z: 0}
+  shopSize: 3.5
+  propScale: 2
+  plazaScale: 3
+  guestHeight: 1.15
+--- !u!4 &479780048
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 479780046}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -2531,6 +2584,7 @@ MonoBehaviour:
   hud: {fileID: 2141879631}
   menu: {fileID: 464333933}
   backdrop: {fileID: 972003699}
+  town: {fileID: 479780047}
   cam: {fileID: 767847129}
 --- !u!4 &783928470
 Transform:
@@ -3110,6 +3164,8 @@ MonoBehaviour:
   position: {x: 82.4, y: 0, z: -3.6}
   yaw: -10
   height: 2.6
+  walk: 0
+  calm: 0
 --- !u!1 &994399313
 GameObject:
   m_ObjectHideFlags: 0
@@ -6894,3 +6950,4 @@ SceneRoots:
   - {fileID: 972003700}
   - {fileID: 783928470}
   - {fileID: 379528538}
+  - {fileID: 479780048}

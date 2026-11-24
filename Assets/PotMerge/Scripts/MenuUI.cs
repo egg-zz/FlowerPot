@@ -46,10 +46,7 @@ namespace PotMerge
         float luckyTick;
         Button startButton;
         Label startLabel;
-        Label homeHearts;
-        Label homeHeartTime;
         Label homeEnergy, homeEnergyTime;
-        bool heartsOpen;
         bool energyOpen;
 
         bool dirty = true;
@@ -67,13 +64,17 @@ namespace PotMerge
             titleLayer = BuildTitle();
             homeLayer = BuildHome();
             mapLayer = BuildMap();
+            townLayer = BuildTown();
+            cloudLayer = BuildClouds();
             popupLayer = new VisualElement { pickingMode = PickingMode.Ignore };
             Stretch(popupLayer);
 
             root.Add(titleLayer);
             root.Add(homeLayer);
             root.Add(mapLayer);
+            root.Add(townLayer);
             root.Add(popupLayer);
+            root.Add(cloudLayer);
             HideScreens();
 
             PlayerData.Changed += MarkDirty;
@@ -170,31 +171,12 @@ namespace PotMerge
             wallet.Add(jewelPill);
             top.Add(wallet);
 
-            // hearts (lives) under the wallet line, tap for refills
-            var hearts = new Button(() => { SoundFx.Tap(); OpenHearts(); }) { text = "" };
-            hearts.style.flexDirection = FlexDirection.Row;
-            hearts.style.alignItems = Align.Center;
-            hearts.style.backgroundColor = Cream;
-            Border(hearts, 0, Color.clear);
-            hearts.style.borderBottomWidth = 8; hearts.style.borderBottomColor = CreamShadow;
-            Round(hearts, 44);
-            hearts.style.paddingLeft = 20; hearts.style.paddingRight = 28; hearts.style.paddingTop = 8; hearts.style.paddingBottom = 8;
-            hearts.style.marginLeft = 0; hearts.style.marginTop = 0;
-            hearts.Add(Icon(IconShape.Heart, 52, new Color(0.95f, 0.33f, 0.40f)));
-            homeHearts = MakeLabel("5", 44, Ink);
-            homeHearts.style.marginLeft = 10;
-            hearts.Add(homeHearts);
-            homeHeartTime = MakeLabel("", 30, InkSoft);
-            homeHeartTime.style.marginLeft = 14;
-            hearts.Add(homeHeartTime);
-            // hearts + energy on a second line under the wallet
+            // energy on a second line under the wallet
             var lives = new VisualElement { pickingMode = PickingMode.Ignore };
             lives.style.position = Position.Absolute;
             lives.style.left = 0; lives.style.top = 108;
             lives.style.flexDirection = FlexDirection.Row;
-            lives.Add(hearts);
             var energy = EnergyPill(out homeEnergy, out homeEnergyTime, OpenEnergy);
-            energy.style.marginLeft = 16;
             energy.style.paddingTop = 8; energy.style.paddingBottom = 8;
             lives.Add(energy);
             wallet.style.position = Position.Relative;
@@ -204,15 +186,29 @@ namespace PotMerge
             var topRight = new VisualElement { pickingMode = PickingMode.Ignore };
             topRight.style.flexDirection = FlexDirection.Row;
             topRight.style.alignItems = Align.FlexStart;
-            topRight.Add(MenuButton(IconShape.Book, "COLLECTION", new Color(0.40f, 0.70f, 0.95f), OpenCollection, out _, 110, 200));
-            topRight.Add(IconButton(IconShape.Gear, 110, OpenSettings));
+            topRight.Add(MenuButton(IconShape.Book, "COLLECTION", new Color(0.40f, 0.70f, 0.95f), OpenCollection, out collectionBadge, 110, 200));
+            collectionBadge.text = "";
+            collectionBadge.style.minWidth = 44; collectionBadge.style.height = 44;
+            collectionBadge.style.backgroundColor = NewRed;
+            // settings, with the town under it
+            var gearColumn = new VisualElement { pickingMode = PickingMode.Ignore };
+            gearColumn.style.width = 110; gearColumn.style.height = 110;
+            gearColumn.Add(IconButton(IconShape.Gear, 110, OpenSettings));
+            var townButton = MenuButton(IconShape.Town, "TOWN", new Color(0.95f, 0.55f, 0.35f), () => TownClicked?.Invoke(), out townBadge, 130, 170);
+            townButton.style.position = Position.Absolute;
+            townButton.style.top = 150; townButton.style.right = -20;
+            townBadge.text = "";
+            townBadge.style.minWidth = 44; townBadge.style.height = 44;
+            townBadge.style.backgroundColor = NewRed;
+            gearColumn.Add(townButton);
+            topRight.Add(gearColumn);
             top.Add(topRight);
             layer.Add(top);
 
             // left column under the coins: quests, then shop
             var left = new VisualElement { pickingMode = PickingMode.Ignore };
             left.style.position = Position.Absolute;
-            left.style.left = 30; left.style.top = 290;
+            left.style.left = 30; left.style.top = 315;
             left.Add(MenuButton(IconShape.Star, "QUESTS", new Color(1f, 0.72f, 0.25f), OpenQuests, out questBadge));
             var shop = MenuButton(IconShape.Bag, "SHOP", PinkDark, OpenShop, out _);
             shop.style.marginTop = 24;
@@ -273,6 +269,7 @@ namespace PotMerge
             Show(titleLayer, true);
             Show(homeLayer, false);
             Show(mapLayer, false);
+            Show(townLayer, false);
         }
 
         public void ShowHome()
@@ -281,6 +278,7 @@ namespace PotMerge
             Show(titleLayer, false);
             Show(homeLayer, true);
             Show(mapLayer, false);
+            Show(townLayer, false);
             dirty = true;
             RefreshHome();
         }
@@ -291,6 +289,7 @@ namespace PotMerge
             Show(titleLayer, false);
             Show(homeLayer, false);
             Show(mapLayer, false);
+            Show(townLayer, false);
         }
 
         void RefreshHome()
@@ -301,8 +300,10 @@ namespace PotMerge
             int claimable = PlayerData.ClaimableQuestCount();
             questBadge.text = claimable.ToString();
             Show(questBadge, claimable > 0);
+            Show(collectionBadge, PlayerData.ClaimableCollectionCount() > 0);
+            Show(townBadge, PlayerData.TownIncomeFull || (town != null && PlayerData.TownRewardReady(town.town)));
             RefreshLucky();
-            RefreshHearts();
+            RefreshEnergy();
             if (startLabel != null)
             {
                 bool resume = board != null && board.LevelInProgress;
@@ -312,12 +313,8 @@ namespace PotMerge
             }
         }
 
-        void RefreshHearts()
+        void RefreshEnergy()
         {
-            if (homeHearts == null) return;
-            int h = PlayerData.Hearts;
-            homeHearts.text = h.ToString();
-            homeHeartTime.text = h >= PlayerData.MaxHearts ? "FULL" : Clock(PlayerData.HeartRemaining);
             if (homeEnergy != null) { homeEnergy.text = PlayerData.Energy.ToString(); homeEnergyTime.text = EnergyClock(); }
         }
 
@@ -379,67 +376,6 @@ namespace PotMerge
 
         static string Clock(TimeSpan t) => $"{(int)t.TotalMinutes}:{t.Seconds:00}";
 
-        // ------------------------------------------------------------------ hearts
-        public void OpenHearts()
-        {
-            var popup = Popup("HEARTS", 820, out var body, ClosePopups);
-            body.style.alignItems = Align.Center;
-            int h = PlayerData.Hearts;
-            var row = new VisualElement { pickingMode = PickingMode.Ignore };
-            row.style.flexDirection = FlexDirection.Row;
-            for (int i = 0; i < PlayerData.MaxHearts; i++)
-            {
-                var icon = Icon(IconShape.Heart, 110, i < h ? new Color(0.95f, 0.33f, 0.40f) : new Color(0.85f, 0.80f, 0.72f));
-                icon.style.marginLeft = 6; icon.style.marginRight = 6;
-                row.Add(icon);
-            }
-            body.Add(row);
-            string msg = h >= PlayerData.MaxHearts ? "Your hearts are full!"
-                : $"Next heart in {Clock(PlayerData.HeartRemaining)}";
-            var l = MakeLabel(msg, 40, Ink);
-            l.style.marginTop = 24;
-            body.Add(l);
-            var note = MakeLabel($"Giving up a level costs 1 heart. 1 heart comes back every {PlayerData.HeartMinutes} min.", 28, InkSoft);
-            note.style.whiteSpace = WhiteSpace.Normal;
-            note.style.unityTextAlign = TextAnchor.MiddleCenter;
-            note.style.marginTop = 12; note.style.marginBottom = 36;
-            body.Add(note);
-
-            if (h < PlayerData.MaxHearts)
-            {
-                bool ad = PlayerData.AdsLeftToday > 0;
-                var adBtn = BigButton("", 640, 124, 40, ad ? new Color(0.40f, 0.70f, 0.95f) : Disabled,
-                    ad ? new Color(0.25f, 0.50f, 0.78f) : DisabledDark, () =>
-                    {
-                        if (PlayerData.AdsLeftToday <= 0) { SoundFx.Error(); return; }
-                        AdService.ShowRewarded(() => { PlayerData.AddHeart(); SoundFx.Unlock(); OpenHearts(); RefreshHome(); });
-                    });
-                var adRow = new VisualElement { pickingMode = PickingMode.Ignore };
-                adRow.style.flexDirection = FlexDirection.Row; adRow.style.alignItems = Align.Center;
-                adRow.Add(Icon(IconShape.Play, 44, Color.white));
-                var adText = MakeLabel(ad ? "  WATCH AD  +1 heart" : "  NO ADS LEFT TODAY", 38, Color.white);
-                adRow.Add(adText);
-                adBtn.Add(adRow);
-                body.Add(adBtn);
-
-                bool canPay = PlayerData.Jewels >= PlayerData.HeartRefillJewels;
-                var jw = BigButton("", 640, 124, 40, canPay ? JewelColor : Disabled,
-                    canPay ? Color.Lerp(JewelColor, Color.black, 0.3f) : DisabledDark, () =>
-                    {
-                        if (!PlayerData.RefillHeartsWithJewels()) { SoundFx.Error(); return; }
-                        SoundFx.Unlock(); OpenHearts(); RefreshHome();
-                    });
-                jw.style.marginTop = 22;
-                var jwRow = new VisualElement { pickingMode = PickingMode.Ignore };
-                jwRow.style.flexDirection = FlexDirection.Row; jwRow.style.alignItems = Align.Center;
-                jwRow.Add(JewelIcon(48));
-                jwRow.Add(MakeLabel($"{PlayerData.HeartRefillJewels}  =  FULL HEARTS", 38, Color.white));
-                jw.Add(jwRow);
-                body.Add(jw);
-            }
-            OpenPopup(popup);
-            heartsOpen = true;
-        }
 
         void RefreshLucky()
         {
@@ -515,7 +451,6 @@ namespace PotMerge
         void ClosePopups()
         {
             questsOpen = false;
-            heartsOpen = false;
             energyOpen = false;
             popupLayer?.Clear();
             if (!swappingPopup) EndTryOn();
@@ -527,99 +462,6 @@ namespace PotMerge
             ClosePopups();
             swappingPopup = false;
             popupLayer.Add(popup);
-        }
-
-        void OpenQuests()
-        {
-            var popup = Popup("DAILY QUESTS", 900, out var body, ClosePopups);
-            var quests = PlayerData.Quests;
-            for (int i = 0; i < quests.Count; i++) body.Add(QuestRow(quests[i], i));
-            var note = MakeLabel("New quests every day", 28, InkSoft);
-            note.style.marginTop = 24;
-            note.style.unityTextAlign = TextAnchor.MiddleCenter;
-            body.Add(note);
-            OpenPopup(popup);
-            questsOpen = true;
-        }
-
-        VisualElement QuestRow(Quest q, int index)
-        {
-            var row = new VisualElement { pickingMode = PickingMode.Ignore };
-            row.style.flexDirection = FlexDirection.Row;
-            row.style.alignItems = Align.Center;
-            row.style.marginTop = 16;
-            row.style.paddingTop = 22; row.style.paddingBottom = 22; row.style.paddingLeft = 36; row.style.paddingRight = 22;
-            row.style.backgroundColor = new Color(0.96f, 0.92f, 0.84f);
-            Round(row, 60);
-
-            var info = new VisualElement { pickingMode = PickingMode.Ignore };
-            info.style.flexGrow = 1;
-            info.style.flexShrink = 1;
-            var text = MakeLabel(PlayerData.QuestText(q), 36, q.claimed ? InkSoft : Ink);
-            text.style.whiteSpace = WhiteSpace.Normal;
-            info.Add(text);
-
-            var barRow = new VisualElement { pickingMode = PickingMode.Ignore };
-            barRow.style.flexDirection = FlexDirection.Row;
-            barRow.style.alignItems = Align.Center;
-            barRow.style.marginTop = 12;
-            var barBg = new VisualElement { pickingMode = PickingMode.Ignore };
-            barBg.style.height = 24;
-            barBg.style.flexGrow = 1;
-            barBg.style.backgroundColor = new Color(0.86f, 0.80f, 0.70f);
-            Round(barBg, 12);
-            var bar = new VisualElement { pickingMode = PickingMode.Ignore };
-            bar.style.height = 24;
-            bar.style.width = Length.Percent(100f * Mathf.Clamp01(q.progress / (float)Mathf.Max(1, q.target)));
-            bar.style.backgroundColor = q.Done ? Green : Gold;
-            Round(bar, 12);
-            barBg.Add(bar);
-            barRow.Add(barBg);
-            var count = MakeLabel($"{q.progress}/{q.target}", 28, InkSoft);
-            count.style.marginLeft = 16;
-            count.style.minWidth = 80;
-            barRow.Add(count);
-            info.Add(barRow);
-            row.Add(info);
-
-            var right = new VisualElement { pickingMode = PickingMode.Ignore };
-            right.style.width = 190;
-            right.style.alignItems = Align.Center;
-            right.style.marginLeft = 16;
-            if (q.claimed)
-            {
-                right.Add(Icon(IconShape.Check, 64, Green));
-            }
-            else if (q.Done)
-            {
-                var claim = BigButton("", 180, 100, 30, Pink, PinkDark, () => Claim(index));
-                var line = new VisualElement { pickingMode = PickingMode.Ignore };
-                line.style.flexDirection = FlexDirection.Row;
-                line.style.alignItems = Align.Center;
-                line.Add(CoinIcon(40, 8));
-                line.Add(MakeLabel("+" + q.reward, 38, Color.white));
-                claim.Add(line);
-                right.Add(claim);
-            }
-            else
-            {
-                var line = new VisualElement { pickingMode = PickingMode.Ignore };
-                line.style.flexDirection = FlexDirection.Row;
-                line.style.alignItems = Align.Center;
-                line.Add(CoinIcon(44, 8));
-                line.Add(MakeLabel("+" + q.reward, 40, Ink));
-                right.Add(line);
-            }
-            row.Add(right);
-            return row;
-        }
-
-        void Claim(int index)
-        {
-            int reward = PlayerData.ClaimQuest(index);
-            if (reward > 0) SoundFx.Coin();
-            RefreshHome();
-            OpenQuests();
         }
 
         public void OpenSettings()
@@ -687,86 +529,7 @@ namespace PotMerge
             OpenPopup(popup);
         }
 
-        int collectionChain;
-
-        void OpenCollection()
-        {
-            int total = database.ChainCount * database.MaxLevel;
-            var popup = Popup($"COLLECTION  {PlayerData.UnlockedCount()}/{total}", 980, out var body, ClosePopups);
-
-            // one tab per chain, showing that chain's best level
-            var tabs = new VisualElement { pickingMode = PickingMode.Ignore };
-            tabs.style.flexDirection = FlexDirection.Row;
-            tabs.style.justifyContent = Justify.SpaceBetween;
-            tabs.style.marginBottom = 30;
-            for (int c = 0; c < database.ChainCount; c++)
-            {
-                int chain = c;
-                var ch = database.Get(c);
-                bool sel = c == collectionChain;
-                var tab = BigButton("", 204, 120, 30,
-                    sel ? ch.color : new Color(0.90f, 0.86f, 0.78f),
-                    sel ? Color.Lerp(ch.color, Color.black, 0.3f) : CreamShadow,
-                    () => { collectionChain = chain; OpenCollection(); });
-                var name = MakeLabel(ch.displayName, 30, sel ? Color.white : InkSoft);
-                int best = PlayerData.Best(c);
-                var lv = MakeLabel(best > 0 ? $"Lv {best}/{database.MaxLevel}" : "Lv -", 26, sel ? new Color(1f, 1f, 1f, 0.9f) : InkSoft);
-                tab.Add(name);
-                tab.Add(lv);
-                tabs.Add(tab);
-            }
-            body.Add(tabs);
-
-            var grid = new VisualElement { pickingMode = PickingMode.Ignore };
-            grid.style.flexDirection = FlexDirection.Row;
-            grid.style.flexWrap = Wrap.Wrap;
-            grid.style.justifyContent = Justify.FlexStart;
-            for (int lv = 1; lv <= database.MaxLevel; lv++) grid.Add(CollectionCell(collectionChain, lv));
-            body.Add(grid);
-            OpenPopup(popup);
-        }
-
-        VisualElement CollectionCell(int chain, int level)
-        {
-            bool unlocked = PlayerData.IsUnlocked(chain, level);
-            var cell = new VisualElement { pickingMode = PickingMode.Ignore };
-            cell.style.width = 200; cell.style.height = 250;
-            cell.style.marginRight = level % 4 == 0 ? 0 : 16;
-            cell.style.marginBottom = 18;
-            cell.style.backgroundColor = unlocked ? new Color(0.96f, 0.92f, 0.84f) : new Color(0.90f, 0.87f, 0.82f);
-            Round(cell, 60);
-            cell.style.alignItems = Align.Center;
-            cell.style.paddingTop = 14;
-
-            var lvLabel = MakeLabel(level.ToString(), 24, Color.white);
-            lvLabel.style.position = Position.Absolute;
-            lvLabel.style.left = 14; lvLabel.style.top = 12;
-            lvLabel.style.width = 40; lvLabel.style.height = 40;
-            lvLabel.style.unityTextAlign = TextAnchor.MiddleCenter;
-            lvLabel.style.backgroundColor = unlocked ? database.Get(chain).color : Disabled;
-            Round(lvLabel, 20);
-            cell.Add(lvLabel);
-
-            var icon = new VisualElement { pickingMode = PickingMode.Ignore };
-            icon.style.width = 150; icon.style.height = 150;
-            var tex = database.Icon(chain, level);
-            if (tex != null)
-            {
-                icon.style.backgroundImage = new StyleBackground(tex);
-                if (!unlocked) icon.style.unityBackgroundImageTintColor = new Color(0.35f, 0.3f, 0.28f, 0.35f);
-            }
-            cell.Add(icon);
-
-            var name = MakeLabel(unlocked ? database.LevelName(chain, level) : "???", 24, unlocked ? Ink : InkSoft);
-            name.style.whiteSpace = WhiteSpace.Normal;
-            name.style.unityTextAlign = TextAnchor.MiddleCenter;
-            name.style.width = 180;
-            name.style.marginTop = 6;
-            cell.Add(name);
-            return cell;
-        }
-
-        int shopTab; // 0 = costumes, 1 = coins
+        int shopTab; // 0 = costumes, 1 = coins, 2 = energy
 
         void OpenShop()
         {
@@ -786,21 +549,22 @@ namespace PotMerge
             tabs.style.flexDirection = FlexDirection.Row;
             tabs.style.justifyContent = Justify.Center;
             tabs.style.marginBottom = 30;
-            string[] names = { "COSTUMES", "COINS" };
+            string[] names = { "COSTUMES", "COINS", "ENERGY" };
             for (int t = 0; t < names.Length; t++)
             {
                 int tab = t;
                 bool sel = shopTab == t;
-                var b = BigButton(names[t], 380, 110, 40,
+                var b = BigButton(names[t], 262, 110, 36,
                     sel ? PinkDark : new Color(0.90f, 0.86f, 0.78f), sel ? Color.Lerp(PinkDark, Color.black, 0.3f) : CreamShadow,
                     () => { shopTab = tab; OpenShop(); });
                 if (!sel) ((Label)b[0]).style.color = InkSoft;
-                if (t == 0) b.style.marginRight = 24;
+                if (t < names.Length - 1) b.style.marginRight = 16;
                 tabs.Add(b);
             }
             body.Add(tabs);
 
             if (shopTab == 0) { AddCostumeSection(body); OpenPopup(popup); return; }
+            if (shopTab == 2) { AddEnergySection(body); OpenPopup(popup); return; }
 
             // coins for jewels
             body.Add(SectionTitle("COINS"));
@@ -1104,6 +868,8 @@ namespace PotMerge
             }
 
             AnimateMap(t);
+            AnimateTown();
+            AnimateClouds();
 
             if (homeLayer.style.display != DisplayStyle.None)
             {
@@ -1115,7 +881,7 @@ namespace PotMerge
                 float s = 1f + 0.035f * Mathf.Sin(t * 3f);
                 startButton.style.scale = new Scale(new Vector3(s, s, 1f));
                 luckyTick += Time.unscaledDeltaTime;
-                if (luckyTick >= 1f) { luckyTick = 0f; RefreshLucky(); RefreshHearts(); if (heartsOpen) OpenHearts(); else if (energyOpen) OpenEnergy(); }
+                if (luckyTick >= 1f) { luckyTick = 0f; RefreshLucky(); RefreshEnergy(); if (energyOpen) OpenEnergy(); }
             }
         }
     }

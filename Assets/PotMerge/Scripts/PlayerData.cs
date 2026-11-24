@@ -4,32 +4,11 @@ using UnityEngine;
 
 namespace PotMerge
 {
-    public enum QuestType
-    {
-        MergeAny,    // merge N times (any chain)
-        MergeChain,  // merge N times in one chain
-        AddItem,     // add N items with coins
-        ReachLevel,  // make one level-N item (any chain)
-    }
-
-    [Serializable]
-    public class Quest
-    {
-        public QuestType type;
-        public int chain;     // MergeChain only
-        public int target;
-        public int progress;
-        public int reward;
-        public bool claimed;
-
-        public bool Done => progress >= target;
-    }
-
     /// <summary>
     /// Persistent player progress (PlayerPrefs JSON): coin wallet, best level and unlocked items per chain,
     /// sound setting and daily quests. Board layout is saved separately by <see cref="MergeBoard"/>.
     /// </summary>
-    public static class PlayerData
+    public static partial class PlayerData
     {
         public const int ChainCount = 4;
         public const int StartCoins = 15;
@@ -52,11 +31,18 @@ namespace PotMerge
             public string[] equipped = new string[5]; // costume id per CostumeSlot, "" = none
             public int levelReached = 1;          // highest level the player may play (1-based)
             public List<int> levelStars = new List<int>(); // best stars per level, index = level - 1
-            public int hearts = MaxHearts;
-            public long heartNextTicks;           // UTC ticks when the next heart comes back (0 = none pending)
             public int energy = MaxEnergy;        // spent by tapping item boxes on the board
             public long energyNextTicks;          // UTC ticks when the next energy point comes back
             public bool energyInit;               // false in saves from before energy existed
+            public int paidOrderLevel;            // level whose bonus orders are remembered below
+            public int paidOrders;                // bit i set = order i of that level was already paid
+            public int questVersion;              // bumped when the kinds of daily quests change
+            public bool questBonusClaimed;        // today's all-quests bonus
+            public List<string> townOwned = new List<string>();
+            public double townStored;             // idle coins waiting in the town
+            public long townLastTicks;            // UTC ticks when townStored was last brought up to date
+            public List<string> townGuests = new List<string>(); // outfits (costume ids) of the last customers served
+            public int[] collectionClaimed = new int[ChainCount]; // bit (level-1) set = discovery reward taken
         }
 
         static Data data;
@@ -238,67 +224,6 @@ namespace PotMerge
             return (coins, jewels, energy);
         }
 
-        // ------------------------------------------------------------------ hearts (lives)
-        public const int MaxHearts = 5;
-        public const int HeartMinutes = 30;
-        public const int HeartRefillJewels = 10;
-
-        /// <summary>Current hearts, after adding the ones that came back while away.</summary>
-        public static int Hearts { get { RegenHearts(); return D.hearts; } }
-
-        /// <summary>Time until the next heart comes back (zero when full).</summary>
-        public static TimeSpan HeartRemaining
-        {
-            get
-            {
-                RegenHearts();
-                if (D.hearts >= MaxHearts || D.heartNextTicks == 0) return TimeSpan.Zero;
-                return new TimeSpan(Math.Max(0, D.heartNextTicks - DateTime.UtcNow.Ticks));
-            }
-        }
-
-        static void RegenHearts()
-        {
-            if (D.hearts >= MaxHearts) { D.heartNextTicks = 0; return; }
-            long now = DateTime.UtcNow.Ticks;
-            long step = TimeSpan.FromMinutes(HeartMinutes).Ticks;
-            if (D.heartNextTicks == 0) { D.heartNextTicks = now + step; Save(); return; }
-            if (now < D.heartNextTicks) return;
-            int gained = 1 + (int)((now - D.heartNextTicks) / step);
-            D.hearts = Mathf.Min(MaxHearts, D.hearts + gained);
-            D.heartNextTicks = D.hearts >= MaxHearts ? 0 : D.heartNextTicks + gained * step;
-            Commit();
-        }
-
-        /// <summary>A failed level costs one heart.</summary>
-        public static void LoseHeart()
-        {
-            RegenHearts();
-            if (D.hearts <= 0) return;
-            D.hearts--;
-            if (D.heartNextTicks == 0) D.heartNextTicks = DateTime.UtcNow.AddMinutes(HeartMinutes).Ticks;
-            Commit();
-        }
-
-        public static void AddHeart()
-        {
-            RegenHearts();
-            D.hearts = Mathf.Min(MaxHearts, D.hearts + 1);
-            if (D.hearts >= MaxHearts) D.heartNextTicks = 0;
-            Commit();
-        }
-
-        /// <summary>Refills all hearts for <see cref="HeartRefillJewels"/> jewels.</summary>
-        public static bool RefillHeartsWithJewels()
-        {
-            if (D.jewels < HeartRefillJewels) return false;
-            D.jewels -= HeartRefillJewels;
-            D.hearts = MaxHearts;
-            D.heartNextTicks = 0;
-            Commit();
-            return true;
-        }
-
         // ------------------------------------------------------------------ energy (item boxes)
         public const int MaxEnergy = 100;
         public const int EnergyMinutes = 2;        // 1 energy comes back every 2 minutes
@@ -365,6 +290,50 @@ namespace PotMerge
             return true;
         }
 
+        /// <summary>Shop: energy for coins (a full refill costs jewels, see <see cref="EnergyRefillJewels"/>).</summary>
+        public static readonly (int coins, int energy)[] EnergyPacks = { (30, 10), (80, 30) };
+
+        /// <summary>The whole pack must fit under the max, so nothing paid for is lost.</summary>
+        public static bool EnergyPackFits(int index) => Energy + EnergyPacks[index].energy <= MaxEnergy;
+
+        public static bool BuyEnergyPack(int index)
+        {
+            if (index < 0 || index >= EnergyPacks.Length || !EnergyPackFits(index)) return false;
+            if (D.coins < EnergyPacks[index].coins) return false;
+            D.coins -= EnergyPacks[index].coins;
+            GainEnergy(EnergyPacks[index].energy);
+            Commit();
+            return true;
+        }
+
+        static int GainEnergy(int amount)
+        {
+            RegenEnergy();
+            int gained = Mathf.Clamp(MaxEnergy - D.energy, 0, amount);
+            D.energy += gained;
+            if (D.energy >= MaxEnergy) D.energyNextTicks = 0;
+            return gained;
+        }
+
+        // ------------------------------------------------------------------ bonus orders
+        public const int OrderEnergy = 3;
+
+        /// <summary>Each order pays once, and only until its level is cleared (retrying a level does not pay it again).</summary>
+        public static bool OrderPays(int level, int order) =>
+            level >= D.levelReached && !(D.paidOrderLevel == level && (D.paidOrders & (1 << order)) != 0);
+
+        /// <summary>Pays a finished order. Returns the energy gained (0 when already full).</summary>
+        public static int PayOrder(int level, int order, int coins)
+        {
+            if (!OrderPays(level, order)) return 0;
+            if (D.paidOrderLevel != level) { D.paidOrderLevel = level; D.paidOrders = 0; }
+            D.paidOrders |= 1 << order;
+            D.coins += coins;
+            int energy = GainEnergy(OrderEnergy);
+            Commit();
+            return energy;
+        }
+
         /// <summary>Pays jewels for extra time in a level.</summary>
         public static bool TrySpendJewels(long amount)
         {
@@ -407,94 +376,6 @@ namespace PotMerge
             set { if (D.soundOn == value) return; D.soundOn = value; Commit(); }
         }
 
-        // ------------------------------------------------------------------ daily quests
-        public static string[] ChainNames = { "Flower", "Cafe", "Bakery", "Ice Cream" };
-
-        public static IReadOnlyList<Quest> Quests
-        {
-            get { EnsureTodayQuests(); return D.quests; }
-        }
-
-        public static string QuestText(Quest q)
-        {
-            switch (q.type)
-            {
-                case QuestType.MergeAny: return $"Merge {q.target} times";
-                case QuestType.MergeChain: return $"Merge {q.target} {ChainNames[Mathf.Clamp(q.chain, 0, ChainCount - 1)]} items";
-                case QuestType.AddItem: return $"Tap item boxes {q.target} times";
-                case QuestType.ReachLevel: return $"Make a level {q.target} item";
-            }
-            return "?";
-        }
-
-        public static void OnMerge(int chain, int newLevel)
-        {
-            EnsureTodayQuests();
-            foreach (var q in D.quests)
-            {
-                if (q.claimed) continue;
-                if (q.type == QuestType.MergeAny) q.progress++;
-                else if (q.type == QuestType.MergeChain && q.chain == chain) q.progress++;
-                else if (q.type == QuestType.ReachLevel && newLevel >= q.target) q.progress = q.target;
-                q.progress = Mathf.Min(q.progress, q.target);
-            }
-            Commit();
-        }
-
-        public static void OnAddItem()
-        {
-            EnsureTodayQuests();
-            foreach (var q in D.quests)
-                if (!q.claimed && q.type == QuestType.AddItem) q.progress = Mathf.Min(q.progress + 1, q.target);
-            Commit();
-        }
-
-        /// <summary>Claims a finished quest and pays its reward. Returns the reward (0 if not claimable).</summary>
-        public static int ClaimQuest(int index)
-        {
-            EnsureTodayQuests();
-            if (index < 0 || index >= D.quests.Count) return 0;
-            var q = D.quests[index];
-            if (!q.Done || q.claimed) return 0;
-            q.claimed = true;
-            D.coins += q.reward;
-            Commit();
-            return q.reward;
-        }
-
-        public static int ClaimableQuestCount()
-        {
-            int n = 0;
-            foreach (var q in Quests) if (q.Done && !q.claimed) n++;
-            return n;
-        }
-
-        static void EnsureTodayQuests()
-        {
-            string today = DateTime.Now.ToString("yyyyMMdd");
-            if (D.questDate == today && D.quests != null && D.quests.Count == 3) return;
-
-            var rng = new System.Random(int.Parse(today));
-            var types = new List<QuestType> { QuestType.MergeAny, QuestType.MergeChain, QuestType.AddItem, QuestType.ReachLevel };
-            types.RemoveAt(rng.Next(types.Count)); // 3 different quest types per day
-
-            D.quests = new List<Quest>();
-            foreach (var t in types)
-            {
-                var q = new Quest { type = t };
-                switch (t)
-                {
-                    case QuestType.MergeAny: q.target = 10 + 5 * rng.Next(3); q.reward = q.target / 2; break;      // 10/15/20 -> 5/7/10
-                    case QuestType.MergeChain: q.chain = rng.Next(ChainCount); q.target = 5 + rng.Next(4); q.reward = q.target; break;
-                    case QuestType.AddItem: q.target = 5 + 5 * rng.Next(2); q.reward = q.target; break;
-                    case QuestType.ReachLevel: q.target = 5 + rng.Next(3); q.reward = 5 * (q.target - 3); break;  // L5/6/7 -> 10/15/20
-                }
-                D.quests.Add(q);
-            }
-            D.questDate = today;
-            Save();
-        }
-
         // ------------------------------------------------------------------ persistence
         public static void ResetAll()
         {
@@ -530,6 +411,9 @@ namespace PotMerge
             if (data.best == null || data.best.Length != ChainCount) Array.Resize(ref data.best, ChainCount);
             if (data.unlockedMask == null || data.unlockedMask.Length != ChainCount) Array.Resize(ref data.unlockedMask, ChainCount);
             if (data.quests == null) data.quests = new List<Quest>();
+            if (data.townOwned == null) data.townOwned = new List<string>();
+            if (data.townGuests == null) data.townGuests = new List<string>();
+            if (data.collectionClaimed == null || data.collectionClaimed.Length != ChainCount) Array.Resize(ref data.collectionClaimed, ChainCount);
             if (data.ownedCostumes == null) data.ownedCostumes = new List<string>();
             // the lucky box interval got shorter: never wait longer than the current interval
             long maxNext = DateTime.UtcNow.AddHours(LuckyBoxHours).Ticks;
@@ -537,8 +421,6 @@ namespace PotMerge
             if (data.equipped == null || data.equipped.Length != 5) Array.Resize(ref data.equipped, 5);
             if (data.levelStars == null) data.levelStars = new List<int>();
             if (data.levelReached < 1) data.levelReached = 1;
-            // saves from before hearts existed deserialize hearts as 0: start them full
-            if (data.hearts <= 0 && data.heartNextTicks == 0) data.hearts = MaxHearts;
             if (!data.energyInit) { data.energy = MaxEnergy; data.energyNextTicks = 0; data.energyInit = true; }
             data.energy = Mathf.Clamp(data.energy, 0, MaxEnergy); // older saves could hold more than the max
         }
